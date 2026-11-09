@@ -7,11 +7,12 @@ class AuctionBid extends Model
 {
     protected $table = 'auction_bids';
     protected $primaryKey = 'id';
-    public $timestamps = false; // Database handles bid_time via default current_timestamp()
+    public $timestamps = false;
 
     protected $fillable = [
         'auction_id',
         'customer_id',
         'bid_amount',
+        'bid_time',
     ];
 }

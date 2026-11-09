@@ -6,11 +6,14 @@ use Illuminate\Database\Eloquent\Model;
 class Message extends Model
 {
     protected $table = 'message';
-    public $timestamps = false; // Assuming legacy table doesn't have Laravel created_at/updated_at columns
+    protected $primaryKey = 'message_id';
+    public $timestamps = false;
 
     protected $fillable = [
         'sender_full_name',
         'sender_email',
         'message',
+        'date_time',
+        'status',
     ];
 }
