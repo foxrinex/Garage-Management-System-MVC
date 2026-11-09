@@ -1,9 +1,9 @@
 <?php
-
 namespace App\Http\Controllers;
 
+use App\Models\Message;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB; // Or use a Setting Eloquent model if you have one
+use Illuminate\Support\Facades\DB;
 
 class HomeController extends Controller
 {
@@ -18,5 +18,28 @@ class HomeController extends Controller
         }
 
         return view('index', compact('setting'));
+    }
+
+    public function sendContact(Request $request)
+    {
+        $request->validate([
+            'email'     => 'required|email|max:255',
+            'full_name' => 'required|string|max:255',
+            'message'   => 'required|string',
+        ], [
+            'email.required'     => 'Email is required',
+            'full_name.required' => 'Full name is required',
+            'message.required'   => 'Massage is required', // Preserving your exact legacy error spelling or standard
+        ]);
+
+        // Eloquent replacement for raw INSERT query
+        Message::create([
+            'sender_full_name' => $request->input('full_name'),
+            'sender_email'     => $request->input('email'),
+            'message'          => $request->input('message'),
+        ]);
+
+        return redirect()->to(route('home') . '#contact')
+                         ->with('success', 'Message sent successfully');
     }
 }

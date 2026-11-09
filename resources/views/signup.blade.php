@@ -9,7 +9,7 @@
     <link rel="icon" href="{{ asset('logo.png') }}">
     <style>
         .body-login {
-            background-color: #1a1a1a;
+            background-color: #1a1a1a; /* Darker fallback */
         }
         .black-fill {
             min-height: 100vh;
@@ -20,6 +20,7 @@
         }
         .login {
             width: 750px !important; 
+            /* Increased transparency to 0.45 */
             background: rgba(30, 30, 30, 0.45); 
             backdrop-filter: blur(8px); 
             -webkit-backdrop-filter: blur(8px);
@@ -73,49 +74,50 @@
     <div class="black-fill">
         <div class="d-flex justify-content-center align-items-center flex-column">
             
-            <form class="login" method="post" action="{{ url('/signup') }}">
+            <form class="login" method="post" action="{{ route('signup.post') }}">
                 @csrf
                 <div class="text-center mb-3">
                     <img src="{{ asset('logo.png') }}" width="100">
                 </div>
                 <h3>Customer Signup</h3>
 
-                @if (isset($_GET['error']))
+                @if (session('error'))
                 <div class="alert alert-danger" role="alert">
-                  {{ $_GET['error'] }}
+                  {{ session('error') }}
                 </div>
                 @endif
 
-                @if (isset($_GET['success']))
+                @if (session('success'))
                 <div class="alert alert-success" role="alert">
-                  {{ $_GET['success'] }}
+                  {{ session('success') }}
                 </div>
                 @endif
 
-                <?php 
-                    $fname = isset($_GET['fname']) ? $_GET['fname'] : '';
-                    $lname = isset($_GET['lname']) ? $_GET['lname'] : '';
-                    $uname = isset($_GET['uname']) ? $_GET['uname'] : '';
-                    $email = isset($_GET['email']) ? $_GET['email'] : '';
-                    $phone = isset($_GET['phone']) ? $_GET['phone'] : '';
-                    $address = isset($_GET['address']) ? $_GET['address'] : '';
-                ?>
+                @if ($errors->any())
+                <div class="alert alert-danger" role="alert">
+                    <ul class="mb-0">
+                        @foreach ($errors->all() as $error)
+                            <li>{{ $error }}</li>
+                        @endforeach
+                    </ul>
+                </div>
+                @endif
 
                 <div class="row gx-4">
                     <div class="col-md-6 mb-3">
                         <label class="form-label fw-semibold">First Name</label>
-                        <input type="text" class="form-control" name="fname" value="<?=$fname?>" placeholder="e.g. John">
+                        <input type="text" class="form-control" name="fname" value="{{ old('fname') }}" placeholder="e.g. John">
                     </div>
                     <div class="col-md-6 mb-3">
                         <label class="form-label fw-semibold">Last Name</label>
-                        <input type="text" class="form-control" name="lname" value="<?=$lname?>" placeholder="e.g. Doe">
+                        <input type="text" class="form-control" name="lname" value="{{ old('lname') }}" placeholder="e.g. Doe">
                     </div>
                 </div>
 
                 <div class="row gx-4">
                     <div class="col-md-6 mb-3">
                         <label class="form-label fw-semibold">Username</label>
-                        <input type="text" class="form-control" name="uname" value="<?=$uname?>" placeholder="Choose a unique username">
+                        <input type="text" class="form-control" name="uname" value="{{ old('uname') }}" placeholder="Choose a unique username">
                     </div>
                     <div class="col-md-6 mb-3">
                         <label class="form-label fw-semibold">Password</label>
@@ -125,23 +127,23 @@
 
                 <div class="mb-3">
                     <label class="form-label fw-semibold">Email Address</label>
-                    <input type="email" class="form-control" name="email" value="<?=$email?>" placeholder="name@example.com">
+                    <input type="email" class="form-control" name="email" value="{{ old('email') }}" placeholder="name@example.com">
                 </div>
 
                 <div class="row gx-4">
                     <div class="col-md-6 mb-3">
                         <label class="form-label fw-semibold">Phone Number</label>
-                        <input type="text" class="form-control" name="phone" value="<?=$phone?>" placeholder="+1 234 567 890">
+                        <input type="text" class="form-control" name="phone" value="{{ old('phone') }}" placeholder="+1 234 567 890">
                     </div>
                     <div class="col-md-6 mb-3">
                         <label class="form-label fw-semibold">Gender</label>
                         <div class="gender-section d-flex align-items-center h-100" style="min-height: 46px;">
                             <div class="form-check form-check-inline mb-0">
-                                <input class="form-check-input" type="radio" name="gender" value="Male" id="male" checked>
+                                <input class="form-check-input" type="radio" name="gender" value="Male" id="male" {{ old('gender', 'Male') == 'Male' ? 'checked' : '' }}>
                                 <label class="form-check-label" for="male">Male</label>
                             </div>
                             <div class="form-check form-check-inline mb-0">
-                                <input class="form-check-input" type="radio" name="gender" value="Female" id="female">
+                                <input class="form-check-input" type="radio" name="gender" value="Female" id="female" {{ old('gender') == 'Female' ? 'checked' : '' }}>
                                 <label class="form-check-label" for="female">Female</label>
                             </div>
                         </div>
@@ -150,7 +152,7 @@
 
                 <div class="mb-4">
                     <label class="form-label fw-semibold">Home Address</label>
-                    <input type="text" class="form-control" name="address" value="<?=$address?>" placeholder="Street, City, Country">
+                    <input type="text" class="form-control" name="address" value="{{ old('address') }}" placeholder="Street, City, Country">
                 </div>
 
                 <button type="submit" class="btn btn-primary w-100 shadow">Create Account</button>
@@ -162,5 +164,6 @@
             </form>
         </div>
     </div>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

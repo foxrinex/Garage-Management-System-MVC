@@ -9,7 +9,7 @@
     <link rel="icon" href="{{ asset('logo.png') }}">
     <style>
         .body-login {
-            background-color: #1a1a1a;
+            background-color: #1a1a1a; /* Darker fallback */
         }
         .black-fill {
             min-height: 100vh;
@@ -20,7 +20,9 @@
         }
         .login {
             width: 750px !important; 
+            /* Transparent grey background */
             background: rgba(30, 30, 30, 0.45); 
+            /* Glassmorphism blur effect */
             backdrop-filter: blur(8px); 
             -webkit-backdrop-filter: blur(8px);
             padding: 40px;
@@ -60,7 +62,7 @@
             text-transform: uppercase;
             letter-spacing: 1px;
             transition: 0.3s;
-            width: 100%;
+            width: 100%; /* Make button full width like signup */
         }
         .footer-text {
             color: #e0e0e0 !important;
@@ -72,7 +74,7 @@
     <div class="black-fill">
         <div class="d-flex justify-content-center align-items-center flex-column">
             
-            <form class="login" method="post" action="{{ url('/login') }}">
+            <form class="login" method="post" action="{{ route('login.post') }}">
                 @csrf
                 <div class="text-center mb-3">
                     <img src="{{ asset('logo.png') }}" width="100">
@@ -80,17 +82,27 @@
                 
                 <h3>LOGIN</h3>
 
-                @if (isset($_GET['error']))
+                @if (session('error'))
                 <div class="alert alert-danger" role="alert">
-                  {{ $_GET['error'] }}
+                  {{ session('error') }}
+                </div>
+                @endif
+
+                @if ($errors->any())
+                <div class="alert alert-danger" role="alert">
+                    <ul class="mb-0">
+                        @foreach ($errors->all() as $error)
+                            <li>{{ $error }}</li>
+                        @endforeach
+                    </ul>
                 </div>
                 @endif
 
                 <div class="mb-3">
                     <label class="form-label">Username</label>
-                    <input type="text" class="form-control" name="uname" placeholder="Enter username">
+                    <input type="text" class="form-control" name="uname" placeholder="Enter username" value="{{ old('uname') }}">
                 </div>
-             
+              
                 <div class="mb-3">
                     <label class="form-label">Password</label>
                     <input type="password" class="form-control" name="pass" placeholder="••••••••">
@@ -99,16 +111,16 @@
                 <div class="mb-4">
                     <label class="form-label">Login As</label>
                     <select class="form-control" name="role">
-                        <option value="1">Manager</option>
-                        <option value="2">Employee</option>
-                        <option value="3">Customer</option>
+                        <option value="1" {{ old('role') == '1' ? 'selected' : '' }}>Manager</option>
+                        <option value="2" {{ old('role') == '2' ? 'selected' : '' }}>Employee</option>
+                        <option value="3" {{ old('role') == '3' ? 'selected' : '' }}>Customer</option>
                     </select>
                 </div>
 
                 <button type="submit" class="btn btn-primary shadow mb-3">Login</button>
                 
                 <div class="text-center">
-                    <a href="{{ url('/') }}" class="text-decoration-none fw-bold text-info">Back to Home</a>
+                    <a href="{{ route('home') }}" class="text-decoration-none fw-bold text-info">Back to Home</a>
                 </div>
             </form>
             

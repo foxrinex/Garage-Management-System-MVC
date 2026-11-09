@@ -2,178 +2,128 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\User;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\DB;
+use App\Models\Customer;
 
 class AuthController extends Controller
 {
-    // ==========================================
-    // HANDLE LOGIN LOGIC
-    // ==========================================
+    public function showLogin()
+    {
+        return view('login');
+    }
+
     public function login(Request $request)
     {
+        $request->validate([
+            'uname' => 'required|string',
+            'pass'  => 'required|string',
+            'role'  => 'required|in:1,2,3',
+        ], [
+            'uname.required' => 'Username is required',
+            'pass.required'  => 'Password is required',
+            'role.required'  => 'An error Occurred',
+            'role.in'        => 'Invalid Role selection',
+        ]);
+
+        $roleMap = [
+            '1' => 'Manager',
+            '2' => 'Employee',
+            '3' => 'Customer',
+        ];
+
         $uname = strtolower($request->input('uname'));
-        $pass = $request->input('pass');
-        $role_num = $request->input('role');
+        $expectedRole = $roleMap[$request->input('role')];
 
-        if (empty($uname)) {
-            $em = "Username is required";
-            return redirect()->to("login?error=" . urlencode($em));
-        } 
-        else if (empty($pass)) {
-            $em = "Password is required";
-            return redirect()->to("login?error=" . urlencode($em));
-        } 
-        else if (empty($role_num)) {
-            $em = "An error Occurred";
-            return redirect()->to("login?error=" . urlencode($em));
-        } 
-        else {
-            
-            // Match numbers to the user_type in your DB
-if ($role_num == '1') {
-                $sql = "SELECT * FROM users WHERE username = ? AND user_type = 'manager'";
-                $role = "Manager";
-            } 
-            else if ($role_num == '2') {
-                $sql = "SELECT * FROM users WHERE username = ? AND user_type = 'employee'";
-                $role = "Employee";
-            } 
-            else if ($role_num == '3') {
-                $sql = "SELECT * FROM users WHERE username = ? AND user_type = 'customer'";
-                $role = "Customer";
-            }
-            else {
-                $em = "Invalid Role selection";
-                return redirect()->to("login?error=" . urlencode($em));
+        // Find user by username (matching legacy query flexibility)
+        $user = User::where('username', $uname)->first();
+
+        if ($user && Hash::check($request->input('pass'), $user->password)) {
+            // Normalize database user_type check case-insensitively
+            $dbUserType = ucfirst(strtolower($user->user_type));
+
+            if ($dbUserType !== $expectedRole) {
+                return redirect()->route('login')->with('error', 'Incorrect Username or Password for this role');
             }
 
-            $users = DB::select($sql, [$uname]);
+            Auth::login($user);
 
-            if (count($users) == 1) {
-                $user = (array) $users[0];
-                $username = $user['username'];
-                $password = $user['password'];
-                $uid = $user['uid'];
-                
-                if ($username === $uname) {
-                    if (password_verify($pass, $password)) {
-                        
-                        // Storing the variables for use in session
-                        session(['role' => $role, 'user_id' => $uid]);
+            session([
+                'role'    => $dbUserType,
+                'user_id' => $user->uid,
+            ]);
 
-                        if ($role == 'Manager') {
-                            return redirect()->to("Manager/index");
-                        } 
-                        else if ($role == 'Employee') {
-                            return redirect()->to("Employee/index");
-                        } 
-                        else if ($role == 'Customer') {
-                            return redirect()->to("Customer/index");
-                        }
-                    } 
-                    else {
-                        $em = "Incorrect Username or Password";
-                        return redirect()->to("login?error=" . urlencode($em));
-                    }
-                } 
-                else {
-                    $em = "Incorrect Username or Password";
-                    return redirect()->to("login?error=" . urlencode($em));
-                }
-            } 
-            else {
-                $em = "Incorrect Username or Password";
-                return redirect()->to("login?error=" . urlencode($em));
-            }
+            return match ($dbUserType) {
+                'Manager'  => redirect()->route('manager.dashboard'),
+                'Employee' => redirect()->route('employee.dashboard'),
+                'Customer' => redirect()->route('customer.dashboard'),
+                default    => redirect()->route('login')->with('error', 'Invalid role context'),
+            };
         }
+
+        return redirect()->route('login')->with('error', 'Incorrect Username or Password');
     }
 
-    // ==========================================
-    // HANDLE SIGNUP LOGIC
-    // ==========================================
+    public function logout(Request $request)
+    {
+        Auth::logout();
+        $request->session()->invalidate();
+        $request->session()->regenerateToken();
+
+        return redirect()->route('login');
+    }
+
+    public function showSignup()
+    {
+        return view('signup');
+    }
+
     public function signup(Request $request)
     {
-        $fname = $request->input('fname');
-        $lname = $request->input('lname');
-        $uname = strtolower($request->input('uname'));
-        $pass  = $request->input('pass');
-        $email = $request->input('email');
-        $phone = $request->input('phone');
-        $address = $request->input('address');
-        $gender = $request->input('gender');
+        // Validate incoming fields matching legacy requirements
+        $request->validate([
+            'fname' => 'required|string|max:255',
+            'lname' => 'required|string|max:255',
+            'uname' => 'required|string|max:255|unique:users,username',
+            'pass' => 'required|string|min:3',
+            'email' => 'required|email|max:255',
+            'phone' => 'required|string|max:50',
+            'address' => 'required|string|max:500',
+            'gender' => 'required|string|in:Male,Female',
+        ]);
 
-        $data = "fname=$fname&lname=$lname&uname=$uname&email=$email&phone=$phone&address=$address";
+        try {
+            DB::beginTransaction();
 
-        if (empty($fname)) {
-            return redirect()->to("signup?error=" . urlencode("First name is required&" . $data));
-        } 
-        else if (empty($lname)) {
-            return redirect()->to("signup?error=" . urlencode("Last name is required&" . $data));
-        } 
-        else if (empty($uname)) {
-            return redirect()->to("signup?error=" . urlencode("Username is required&" . $data));
-        } 
-        else if (empty($pass)) {
-            return redirect()->to("signup?error=" . urlencode("Password is required&" . $data));
-        } 
-        else {
-            $users_found = DB::select("SELECT username FROM users WHERE username = ?", [$uname]);
+            // 1. Insert into users table matching legacy columns
+            $user = User::create([
+                'username' => strtolower($request->uname),
+                'password' => Hash::make($request->pass),
+                'user_type' => 'customer', 
+            ]);
 
-            $exists = false;
-            
-            // Explicitly written for loop as requested
-            for ($i = 0; $i < count($users_found); $i++) {
-                $currentUser = (array) $users_found[$i];
-                if ($currentUser['username'] == $uname) {
-                    $exists = true;
-                }
-            }
+            // 2. Insert into customer table matching legacy columns exactly
+            Customer::create([
+                'user_id' => $user->uid, // Assuming primary key on users is 'uid'
+                'fname' => $request->fname,
+                'lname' => $request->lname,
+                'phone_number' => $request->phone,
+                'email_address' => $request->email,
+                'address' => $request->address,
+                'gender' => $request->gender,
+            ]);
 
-            if ($exists) {
-                $em = "The username ($uname) is already taken.";
-                return redirect()->to("signup?error=" . urlencode($em . "&" . $data));
-            } 
-            else {
-                $hashed_pass = password_hash($pass, PASSWORD_DEFAULT);
-                $user_type = 'customer';
+            DB::commit();
 
-                DB::insert("INSERT INTO users(username, password, user_type) VALUES(?,?,?)", [
-                    $uname, $hashed_pass, $user_type
-                ]);
-
-                $user_id = DB::getPdo()->lastInsertId();
-
-                DB::insert("INSERT INTO customer(user_id, fname, lname, phone_number, email_address, address, gender) VALUES(?,?,?,?,?,?,?)", [
-                    $user_id, $fname, $lname, $phone, $email, $address, $gender
-                ]);
-
-                $sm = "Account created successfully!";
-                return redirect()->to("signup?success=" . urlencode($sm));
-            }
-        }
-    }
-
-    // Contact us logic
-
-    public function contact(Request $request)
-    {
-        $email     = $request->input('email');
-        $full_name = $request->input('full_name');
-        $message   = $request->input('message');
-
-        if (empty($email)) {
-            return redirect()->to('/#contact')->with('error', 'Email is required');
-        } else if (empty($full_name)) {
-            return redirect()->to('/#contact')->with('error', 'Full name is required');
-        } else if (empty($message)) {
-            return redirect()->to('/#contact')->with('error', 'Message is required');
-        } else {
-            $sql  = "INSERT INTO message (sender_full_name, sender_email, message) VALUES (?, ?, ?)";
-            DB::insert($sql, [$full_name, $email, $message]);
-            
-            return redirect()->to('/#contact')->with('success', 'Message sent successfully');
+            return redirect()->route('signup')->with('success', 'Account created successfully!');
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return back()->withInput()->with('error', 'An error occurred while creating your account. Please try again.');
         }
     }
 }
+
+

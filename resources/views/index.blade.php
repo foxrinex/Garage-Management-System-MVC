@@ -71,6 +71,17 @@
             <form method="post" action="{{ route('contact.send') }}">
                 @csrf
                 <h3>Contact Us</h3>
+
+                @if ($errors->any())
+                <div class="alert alert-danger" role="alert">
+                    <ul class="mb-0">
+                        @foreach ($errors->all() as $error)
+                            <li>{{ $error }}</li>
+                        @endforeach
+                    </ul>
+                </div>
+                @endif
+
                 @if (session('error'))
                 <div class="alert alert-danger" role="alert">
                 {{ session('error') }}
@@ -83,16 +94,16 @@
                 @endif
             <div class="mb-3">
                 <label for="exampleInputEmail1" class="form-label">Email address</label>
-                <input type="email" class="form-control" id="exampleInputEmail1" name="email" aria-describedby="emailHelp">
+                <input type="email" class="form-control" id="exampleInputEmail1" name="email" aria-describedby="emailHelp" value="{{ old('email') }}">
                 <div id="emailHelp" class="form-text">We'll never share your email with anyone else.</div>
             </div>
             <div class="mb-3">
                 <label class="form-label">Full Name</label>
-                <input type="text" name="full_name" class="form-control">
+                <input type="text" name="full_name" class="form-control" value="{{ old('full_name') }}">
             </div>
             <div class="mb-3">
                 <label class="form-label">Message</label>
-                <textarea class="form-control" name="message" rows="4"></textarea>
+                <textarea class="form-control" name="message" rows="4">{{ old('message') }}</textarea>
             </div>
             <button type="submit" class="btn btn-primary">Send</button>
             </form>
