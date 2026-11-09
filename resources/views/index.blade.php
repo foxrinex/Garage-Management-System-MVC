@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Welcome to Garage Management System</title>
+    <title>Welcome to {{ $setting->garage_name }}</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.0/dist/css/bootstrap.min.css">
     <link rel="stylesheet" href="{{ asset('css/style.css') }}">
     <link rel="icon" href="{{ asset('logo.png') }}">
@@ -45,22 +45,22 @@
         </nav>
 
         <section class="welcome-text d-flex justify-content-center align-items-center flex-column">
-            <img src="{{ asset('logo.png') }}" >
-            <h4>Welcome to Rev Nation Garage</h4>
-            <p>Your ultimate destination for custom builds, parts, and professional car care.</p>
+            <img src="{{ asset('logo.png') }}">
+            <h4>Welcome to {{ $setting->garage_name }}</h4>
+            <p>{{ $setting->slogan }}</p>
         </section>
 
         <section id="about" class="d-flex justify-content-center align-items-center flex-column">
             <div class="card mb-3 card-1">
               <div class="row g-0">
                 <div class="col-md-4">
-                  <img src="{{ asset('logo.png') }}" class="img-fluid rounded-start" >
+                  <img src="{{ asset('logo.png') }}" class="img-fluid rounded-start">
                 </div>
                 <div class="col-md-8">
                   <div class="card-body">
                     <h5 class="card-title">About Us</h5>
-                    <p class="card-text">We provide top-tier garage management, automated service tracking, parts ordering, and exclusive vehicle showrooms for enthusiasts and professionals alike.</p>
-                    <p class="card-text"><small class="text-muted">Rev Nation</small></p>
+                    <p class="card-text">{{ $setting->about }}</p>
+                    <p class="card-text"><small class="text-muted">{{ $setting->garage_name }}</small></p>
                   </div>
                 </div>
               </div>
@@ -99,7 +99,7 @@
         </section>
 
         <div class="text-center text-light">
-            Copyright &copy; 2026 Rev Nation. All rights reserved.
+            Copyright &copy; {{ $setting->current_year }} {{ $setting->garage_name }}. All rights reserved.
         </div>
 
         </div>
