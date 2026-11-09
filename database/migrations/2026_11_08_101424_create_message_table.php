@@ -13,8 +13,8 @@ return new class extends Migration
             $table->string('sender_full_name', 100);
             $table->string('sender_email', 255);
             $table->text('message');
-            $table->timestamp('date_time')->useCurrent();
-            $table->string('status', 25)->default('Unread');
+            $table->dateTime('date_time')->useCurrent();
+            $table->string('status', 25)->nullable()->default('Unread');
         });
     }
 

@@ -32,18 +32,18 @@ class AuthController extends Controller
         else {
             
             // Match numbers to the user_type in your DB
-            if ($role_num == '1') {
-                $sql = "SELECT * FROM users WHERE username = ? AND user_type = 'Manager'";
+if ($role_num == '1') {
+                $sql = "SELECT * FROM users WHERE username = ? AND user_type = 'manager'";
                 $role = "Manager";
             } 
             else if ($role_num == '2') {
-                $sql = "SELECT * FROM users WHERE username = ? AND user_type = 'Employee'";
+                $sql = "SELECT * FROM users WHERE username = ? AND user_type = 'employee'";
                 $role = "Employee";
             } 
             else if ($role_num == '3') {
-                $sql = "SELECT * FROM users WHERE username = ? AND user_type = 'Customer'";
+                $sql = "SELECT * FROM users WHERE username = ? AND user_type = 'customer'";
                 $role = "Customer";
-            } 
+            }
             else {
                 $em = "Invalid Role selection";
                 return redirect()->to("login?error=" . urlencode($em));

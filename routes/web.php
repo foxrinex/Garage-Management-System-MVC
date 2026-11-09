@@ -3,6 +3,7 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\CustomerController;
+use App\Http\Controllers\ManagerController;
 /*
 |--------------------------------------------------------------------------
 | Web Routes
@@ -61,9 +62,7 @@ Route::post('/Customer/profile/update', [CustomerController::class, 'updateProfi
 
 
 // Manager Portal Route
-Route::get('/Manager/index', function () {
-    return view('Manager.index'); // maps to resources/views/Manager/index.blade.php
-});
+Route::get('/Manager/index', [ManagerController::class, 'index']);
 
 
 // Employee Portal Route
