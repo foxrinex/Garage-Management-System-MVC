@@ -18,4 +18,8 @@ class Customer extends Model
         'address',
         'gender',
     ];
+    public function user()
+    {
+        return $this->belongsTo(User::class, 'user_id', 'uid');
+    }
 }
