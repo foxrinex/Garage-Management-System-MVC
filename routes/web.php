@@ -43,19 +43,6 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/customer/wishlist-handle/{id}', [CustomerController::class, 'wishlistHandle'])->name('customer.wishlist.handle');
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
     Route::get('/employee/auction-delete/{id}', [EmployeeController::class, 'terminateAuction'])->name('employee.auction.delete');
     Route::get('/employee/auction-end/{id}', [EmployeeController::class, 'endAuction'])->name('employee.auction.end');
     Route::post('/employee/car-add', [EmployeeController::class, 'storeCar'])->name('employee.car.store');
@@ -72,7 +59,54 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/employee/warranty-status/{id}', [EmployeeController::class, 'updateWarrantyStatus'])->name('employee.warranty.status');
 
 
+
+    Route::post('/manager/auction-add', [ManagerController::class, 'storeAuction'])->name('manager.auction.store');
+    Route::get('/manager/auction-confirm-payment/{id}', [ManagerController::class, 'confirmAuctionPayment'])->name('manager.auction.confirm.payment');
+    Route::get('/manager/auction-delete/{id}', [ManagerController::class, 'deleteAuction'])->name('manager.auction.delete');
+    Route::get('/manager/auction-end/{id}', [ManagerController::class, 'endAuction'])->name('manager.auction.end');
+    Route::get('/manager/auction-reject-payment/{id}', [ManagerController::class, 'rejectAuctionPayment'])->name('manager.auction.reject.payment');
+    
+    //one file
+    Route::post('/manager/builder-settings', [ManagerController::class, 'handleBuilderSettingsPost'])->name('manager.builder.settings.post');
+    Route::get('/manager/category-toggle/{id}', [ManagerController::class, 'toggleMandatoryCategory'])->name('manager.category.toggle');
+    Route::get('/manager/category-delete/{id}', [ManagerController::class, 'deleteCategory'])->name('manager.category.delete');
+    Route::get('/manager/tag-delete/{id}', [ManagerController::class, 'deleteTag'])->name('manager.tag.delete');
+    //file end
+
+    Route::post('/manager/car-add', [ManagerController::class, 'storeCar'])->name('manager.car.store');
+    Route::get('/manager/car-delete/{id}', [ManagerController::class, 'deleteCar'])->name('manager.car.delete');
+    Route::post('/manager/car-edit/{id}', [ManagerController::class, 'updateCar'])->name('manager.car.update');
+    Route::post('/manager/car-review-reply', [ManagerController::class, 'replyToCarReview'])->name('manager.car.review.reply');
+    Route::post('/manager/category-add', [ManagerController::class, 'storeCategory'])->name('manager.category.store');
+
+    //one file
+    Route::post('/manager/employee-register', [ManagerController::class, 'registerEmployee'])->name('manager.employee.register');
+    Route::post('/manager/employee-salary-update', [ManagerController::class, 'updateEmployeeSalary'])->name('manager.employee.salary.update');
+    Route::post('/manager/employee-info-update', [ManagerController::class, 'updateEmployeeInfo'])->name('manager.employee.info.update');
+    Route::get('/manager/employee-delete/{id}', [ManagerController::class, 'deleteEmployee'])->name('manager.employee.delete');
+    //file end
+
+    Route::post('/manager/message-delete', [ManagerController::class, 'deleteMessage'])->name('manager.message.delete');
+
+    //onefile
+    Route::post('/manager/product-restock', [ManagerController::class, 'restockProduct'])->name('manager.product.restock');
+    Route::post('/manager/product-add', [ManagerController::class, 'storeProduct'])->name('manager.product.store');
+    //file end
+
+    Route::get('/manager/product-delete/{id}', [ManagerController::class, 'deleteProduct'])->name('manager.product.delete');
+    Route::post('/manager/product-edit/{id}', [ManagerController::class, 'updateProduct'])->name('manager.product.update');
+    Route::post('/manager/profile-edit', [ManagerController::class, 'updateProfile'])->name('manager.profile.update');
+    Route::post('/manager/repair-update', [ManagerController::class, 'updateRepair'])->name('manager.repair.update');
+    Route::post('/manager/reply-review', [ManagerController::class, 'replyToProductReview'])->name('manager.product.review.reply');
+    Route::post('/manager/settings-edit', [ManagerController::class, 'updateSettings'])->name('manager.settings.update');
+    Route::get('/manager/warranty-status/{id}', [ManagerController::class, 'updateWarrantyStatus'])->name('manager.warranty.status');
+
 });
+
+
+
+    
+
 
 
 
