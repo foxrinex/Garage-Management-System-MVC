@@ -376,12 +376,17 @@ class CustomerController extends Controller
                             'build_name' => $buildName,
                         ]);
 
-                        for (int $i = 0; $i < count($parts); $i = $i + 1) {
-                            BuildItem::create([
+                        for ($i = 0; $i < count($parts); $i = $i + 1)
+                            {
+
+                             BuildItem::create
+                             ([
                                 'build_id' => $userBuild->id,
                                 'product_id' => $parts[$i]->product_id,
                             ]);
-                        }
+                        
+
+                            }
 
                         return redirect()->route('saved.builds')->with('success', 'Build saved successfully');
                     });
@@ -400,7 +405,7 @@ class CustomerController extends Controller
                     $parts = BuilderTemporary::where('user_id', $userId)->get();
                 }
                 
-                for (int $i = 0; $i < count($parts); $i = $i + 1) {
+                for ($i = 0; $i < count($parts); $i = $i + 1) {
                     $currPId = $parts[$i]->product_id;
 
                     $cartItem = Cart::where('customer_id', $userId)
@@ -435,7 +440,7 @@ class CustomerController extends Controller
 
                 if ($totalParts > 0) {
                     $wishCount = 0;
-                    for (int $i = 0; $i < $totalParts; $i = $i + 1) {
+                    for ($i = 0; $i < $totalParts; $i = $i + 1) {
                         $currPId = $parts[$i]->product_id;
                         $exists = Wishlist::where('user_id', $userId)
                             ->where('product_id', $currPId)
@@ -447,7 +452,7 @@ class CustomerController extends Controller
                     }
 
                     if ($wishCount == $totalParts) {
-                        for (int $i = 0; $i < $totalParts; $i = $i + 1) {
+                        for ($i = 0; $i < $totalParts; $i = $i + 1) {
                             $currPId = $parts[$i]->product_id;
                             Wishlist::where('user_id', $userId)
                                 ->where('product_id', $currPId)
@@ -455,7 +460,7 @@ class CustomerController extends Controller
                         }
                         return redirect($finalRedirect . $separator . "success=Build removed from wishlist");
                     } else {
-                        for (int $i = 0; $i < $totalParts; $i = $i + 1) {
+                        for ($i = 0; $i < $totalParts; $i = $i + 1) {
                             $currPId = $parts[$i]->product_id;
                             Wishlist::firstOrCreate([
                                 'user_id' => $userId,
@@ -587,7 +592,7 @@ class CustomerController extends Controller
                     return redirect()->route('cart.index')->with('error', 'Your cart is empty.');
                 }
 
-                for (int $i = 0; $i < count($items); $i = $i + 1) {
+                for ($i = 0; $i < count($items); $i = $i + 1) {
                     $item = $items[$i];
                     $total = $item->price * $item->quantity;
 
@@ -719,7 +724,7 @@ class CustomerController extends Controller
                 }
 
                 // 2. Loop through for validation first (Safety Check)
-                for (int $i = 0; $i < count($cartItems); $i = $i + 1) {
+                for ( $i = 0; $i < count($cartItems); $i = $i + 1) {
                     $item = $cartItems[$i];
                     
                     if ($item->quantity > $item->stock) {
@@ -731,7 +736,7 @@ class CustomerController extends Controller
                 // 3. Loop through to process the purchase
                 $dateOrdered = Carbon::now()->toDateString();
 
-                for (int $i = 0; $i < count($cartItems); $i = $i + 1) {
+                for ($i = 0; $i < count($cartItems); $i = $i + 1) {
                     $item = $cartItems[$i];
                     $pId = $item->product_id;
                     $qty = $item->quantity;
@@ -1037,7 +1042,7 @@ class CustomerController extends Controller
             $allowedExs = ["jpg", "jpeg", "png"];
             
             $isAllowed = false;
-            for (int $i = 0; $i < count($allowedExs); $i = $i + 1) {
+            for ( $i = 0; $i < count($allowedExs); $i = $i + 1) {
                 if ($imgExLc == $allowedExs[$i]) {
                     $isAllowed = true;
                 }
@@ -1142,7 +1147,7 @@ class CustomerController extends Controller
                     $partsToRemove = RepairPartsSelected::where('repair_id', $id)->get();
                     $partsCount = count($partsToRemove);
 
-                    for (int $i = 0; $i < $partsCount; $i = $i + 1) {
+                    for ( $i = 0; $i < $partsCount; $i = $i + 1) {
                         $pId = $partsToRemove[$i]->product_id;
 
                         // Check and restore stock safely
