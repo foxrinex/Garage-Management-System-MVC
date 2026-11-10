@@ -25,15 +25,28 @@
                 <p class="text-muted small">Update your personal information and security</p>
             </div>
 
+            {{-- Custom Session Error Message (e.g. Incorrect Current Password) --}}
             @if (session('error'))
-                <div class="alert alert-danger p-2 small">
+                <div class="alert alert-danger p-2 small mb-3">
                     <i class="fa fa-times-circle"></i> {{ session('error') }}
                 </div>
             @endif
 
+            {{-- Custom Session Success Message --}}
             @if (session('success'))
-                <div class="alert alert-success p-2 small">
+                <div class="alert alert-success p-2 small mb-3">
                     <i class="fa fa-check-circle"></i> {{ session('success') }}
+                </div>
+            @endif
+
+            {{-- Built-in Laravel Validation Errors (e.g. Password confirmation mismatch) --}}
+            @if ($errors->any())
+                <div class="alert alert-danger p-2 small mb-3">
+                    <ul class="mb-0 ps-3">
+                        @foreach ($errors->all() as $error)
+                            <li><i class="fa fa-times-circle"></i> {{ $error }}</li>
+                        @endforeach
+                    </ul>
                 </div>
             @endif
 
@@ -96,6 +109,7 @@
 
                 <div class="mt-4 pt-2">
                     <button type="submit" class="btn btn-primary w-100 fw-bold shadow-sm">Save All Changes</button>
+                    {{-- FIXED: Pointing to customer.profile (GET) instead of customer.profile.update (POST) --}}
                     <a href="{{ route('customer.profile') }}" class="btn btn-light w-100 mt-2 border">Back to Profile</a>
                 </div>
             </form>
@@ -108,7 +122,6 @@
         var passwordLength = 12;
         var password = "";
         
-        // Full for loop as requested
         for (var i = 0; i < passwordLength; i = i + 1) {
             
             var randomNumber = Math.floor(Math.random() * chars.length);
@@ -119,13 +132,10 @@
         
         var passInput = document.getElementById("new_pass");
         
-        // Put the generated password into the input field directly
         passInput.value = password;
         
-        // Temporarily change type to text so the user can see it
         passInput.type = "text";
         
-        // Hide it again (back to password dots) after 4 seconds
         setTimeout(function(){ 
             passInput.type = "password"; 
         }, 4000);

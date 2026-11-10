@@ -30,16 +30,14 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/customer/edit-review', [CustomerController::class, 'editReview'])->name('customer.review.update');
     Route::post('/customer/place-order', [CustomerController::class, 'placeOrder'])->name('customer.order.place');
     Route::match(['get', 'post'], '/customer/post-review', [CustomerController::class, 'postReview'])->name('customer.review.post');
-    Route::post('/customer/profile-update', [CustomerController::class, 'updateProfile'])->name('customer.profile.update');
+    Route::post('/customer/profile/edit', [CustomerController::class, 'updateProfile'])->name('customer.profile.update');
     Route::get('/customer/cart/reduce/{cartId}', [CustomerController::class, 'reduceQuantity'])->name('customer.cart.reduce');
     Route::get('/customer/cart/remove/{cartId}', [CustomerController::class, 'removeFromCart'])->name('customer.cart.remove');
     Route::post('/customer/repair-add', [CustomerController::class, 'storeRepairRequest'])->name('customer.repair.store');
     Route::get('/customer/repair-cancel/{id}', [CustomerController::class, 'cancelRepairRequest'])->name('customer.repair.cancel');
     Route::get('/customer/repair-decline-parts/{id}', [CustomerController::class, 'declineRepairParts'])->name('customer.repair.decline.parts');
     Route::get('/customer/my-reviews/delete/{id}', [CustomerController::class, 'deleteMyReview'])->name('customer.review.delete.my');
-
-    Route::post('/customer/send-message', [CustomerController::class, 'sendMessage'])->name('customer.message.send');
-    
+    Route::post('/customer/send-message', [CustomerController::class, 'sendMessage'])->name('customer.support.send');
     Route::post('/customer/submit-warranty', [CustomerController::class, 'submitWarrantyClaim'])->name('customer.warranty.submit');
     Route::get('/customer/wishlist-handle/{id}', [CustomerController::class, 'wishlistHandle'])->name('customer.wishlist.handle');
     Route::get('/customer/auction-history', [CustomerController::class, 'auctionHistory'])->name('customer.auction.history');
@@ -52,9 +50,7 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/customer/car-view/{id}', [CustomerController::class, 'carView'])->name('customer.car.view');
     Route::get('/customer/checkout-review', [CustomerController::class, 'checkoutReview'])->name('customer.checkout.review');
     Route::get('/customer/claim-warranty', [CustomerController::class, 'claimWarrantyForm'])->name('customer.warranty.claim.form');
-    
     Route::get('/customer/contact', [CustomerController::class, 'contactSupport'])->name('customer.contact');
-
     Route::get('/customer/store', [CustomerController::class, 'store'])->name('customer.store');
     Route::get('/customer/history', [CustomerController::class, 'history'])->name('customer.history');
     Route::get('/customer/dashboard', [CustomerController::class, 'dashboard'])->name('customer.dashboard');

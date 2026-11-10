@@ -36,7 +36,7 @@
                 <p class="text-muted">Manage your custom configurations and compatibility checks.</p>
             </div>
             <div class="col-md-4 text-md-end">
-                <a href="{{ route('customer.car.builder') }}" class="btn btn-primary btn-lg shadow-sm">
+                <a href="{{ route('customer.builder') }}" class="btn btn-primary btn-lg shadow-sm">
                     <i class="fa fa-plus-circle"></i> Create New Build
                 </a>
             </div>
@@ -50,7 +50,7 @@
                 <i class="fa fa-folder-open-o fa-4x text-muted mb-3"></i>
                 <h4 class="text-secondary">Your garage is empty</h4>
                 <p>You haven't saved any car configurations yet.</p>
-                <a href="{{ route('customer.car.builder') }}" class="btn btn-outline-primary mt-2">Start Building Now</a>
+                <a href="{{ route('customer.builder') }}" class="btn btn-outline-primary mt-2">Start Building Now</a>
             </div>
 
         @else

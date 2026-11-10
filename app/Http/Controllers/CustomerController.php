@@ -536,7 +536,7 @@ class CustomerController extends Controller
     {
         $request->validate([
             'old_pass' => 'required',
-            'new_pass' => 'required|string|min:6',
+            'new_pass' => 'required|string|min:3',
             'c_new_pass' => 'required|same:new_pass',
         ], [
             'old_pass.required' => 'Old password is required',
@@ -865,7 +865,7 @@ class CustomerController extends Controller
             'old_password' => 'required',
             'phone_number' => 'nullable|string|max:50',
             'address' => 'nullable|string',
-            'new_password' => 'nullable|string|min:6',
+            'new_password' => 'nullable|string|min:3',
             'confirm_password' => 'nullable|same:new_password',
         ], [
             'fname.required' => 'Required fields are missing',
@@ -875,24 +875,22 @@ class CustomerController extends Controller
             'confirm_password.same' => 'New passwords did not match',
         ]);
 
-        $userId = session('user_id'); // Matches session storage
+        $userId = session('user_id');
 
         if (!$userId) {
             return redirect()->route('login');
         }
 
-        $oldPass = $request->input('old_password');
-        $newPass = $request->input('new_password');
-        $confirmPass = $request->input('confirm_password');
-
         try {
-            return DB::transaction(function () use ($request, $userId, $oldPass, $newPass, $confirmPass) {
-                // 1. Verify the current password from the users table
+            $errorRedirect = null;
+
+            DB::transaction(function () use ($request, $userId, &$errorRedirect) {
+                // 1. Verify the current password
                 $user = User::where('uid', $userId)->first();
 
-                if (!$user || !Hash::check($oldPass, $user->password)) {
-                    return redirect()->route('customer.profile.edit')
-                        ->with('error', 'Incorrect current password');
+                if (!$user || !Hash::check($request->input('old_password'), $user->password)) {
+                    $errorRedirect = 'Incorrect current password';
+                    return;
                 }
 
                 // 2. Update Personal Info in the customer table
@@ -908,25 +906,24 @@ class CustomerController extends Controller
                     ]);
                 }
 
-                // 3. Update Password if a new one was provided
+                // 3. Update Password if provided
+                $newPass = $request->input('new_password');
                 if (!empty($newPass)) {
-                    if ($newPass === $confirmPass) {
-                        $user->update([
-                            'password' => Hash::make($newPass),
-                        ]);
-                    } else {
-                        return redirect()->route('customer.profile.edit')
-                            ->with('error', 'Profile updated, but new passwords did not match');
-                    }
+                    $user->update([
+                        'password' => Hash::make($newPass),
+                    ]);
                 }
-
-                return redirect()->route('customer.profile.edit')
-                    ->with('success', 'Profile updated successfully!');
             });
+
+            if ($errorRedirect) {
+                return redirect()->route('customer.profile.edit')->with('error', $errorRedirect);
+            }
+
+            return redirect()->route('customer.profile.edit')->with('success', 'Profile updated successfully!');
 
         } catch (\Exception $e) {
             return redirect()->route('customer.profile.edit')
-                ->with('error', 'An error occurred while updating your profile.');
+                ->with('error', 'An error occurred while updating your profile: ' . $e->getMessage());
         }
     }
 
@@ -1258,7 +1255,7 @@ class CustomerController extends Controller
         ]);
 
         if ($sent) {
-            return redirect()->route('contact')->with('success', 'Message sent successfully!');
+            return redirect()->route('customer.contact')->with('success', 'Message sent successfully!');
         } else {
             return redirect()->route('contact')->with('error', 'An error occurred during insertion');
         }
@@ -1994,7 +1991,7 @@ class CustomerController extends Controller
         ));
     }
 
-    public function contactSupport()
+   public function contactSupport()
     {
         $userId = session('user_id');
         $role = session('role');
@@ -2003,7 +2000,7 @@ class CustomerController extends Controller
             return redirect()->route('login');
         }
 
-        // Fetch user info using Eloquent
+        // Match the session's user_id against the user_id column in the customers table
         $userInfo = Customer::where('user_id', $userId)->first();
         
         $fullName = $userInfo ? $userInfo->fname . " " . $userInfo->lname : '';
@@ -2983,5 +2980,19 @@ class CustomerController extends Controller
 
         // Add any necessary data retrieval for your car/part builder here
         return view('customer.builder');
+    }
+
+    public function editProfile()
+    {
+        $userId = session('user_id');
+        $role = session('role');
+
+        if (!$userId || $role !== 'Customer') {
+            return redirect()->route('login');
+        }
+
+        $customer = Customer::where('user_id', $userId)->first();
+
+        return view('customer.profile-edit', compact('customer'));
     }
 }
