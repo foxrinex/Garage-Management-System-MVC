@@ -1,29 +1,3 @@
-<?php
-use Illuminate\Support\Facades\DB;
-
-// Fetch customer name for the navbar if not already set
-$nav_display_name = "Customer";
-if (!isset($customer_name) && session()->has('user_id')) {
-    $nav_user_id = session('user_id');
-    $nav_cust_data = DB::select("SELECT fname FROM customer WHERE user_id = ?", [$nav_user_id]);
-    if (!empty($nav_cust_data)) {
-        $nav_display_name = $nav_cust_data[0]->fname;
-    }
-}
-
-// Logic to calculate cart count
-$nav_cart_count = 0;
-if (session()->has('cart')) {
-    $cart_session = session('cart');
-    for ($i = 0; $i < count($cart_session); $i = $i + 1) {
-        $nav_cart_count = $nav_cart_count + $cart_session[$i]['quantity'];
-    }
-}
-
-// Logic to calculate wishlist count (temporarily set to 0 until wishlist table exists)
-$nav_wish_count = 0;
-?>
-
 <style>
     /* Light up effect for links */
     .navbar-nav .nav-link {
@@ -71,7 +45,7 @@ $nav_wish_count = 0;
 
 <nav class="navbar navbar-expand-lg navbar-dark bg-dark shadow-sm py-3">
   <div class="container-fluid">
-    <a class="navbar-brand" href="{{ url('/Customer/index') }}">
+    <a class="navbar-brand" href="{{ route('customer.dashboard') }}">
       <img src="{{ asset('logo.png') }}" width="40">
     </a>
     
@@ -83,7 +57,7 @@ $nav_wish_count = 0;
       <ul class="navbar-nav me-auto mb-2 mb-lg-0">
         
         <li class="nav-item">
-          <a class="nav-link" href="{{ url('/Customer/index') }}">
+          <a class="nav-link" href="{{ route('customer.dashboard') }}">
             <i class="fa fa-home me-1"></i> Home
           </a>
         </li>
@@ -93,11 +67,11 @@ $nav_wish_count = 0;
             <i class="fa fa-shopping-bag me-1"></i> Shop
           </a>
           <ul class="dropdown-menu shadow border-0" aria-labelledby="shopDrop">
-            <li><a class="dropdown-item" href="#"><i class="fa fa-gears me-2 text-muted"></i> Parts Store</a></li>
-            <li><a class="dropdown-item" href="#"><i class="fa fa-car me-2 text-muted"></i> Car Showroom</a></li>
+            <li><a class="dropdown-item" href="{{ route('customer.store') }}"><i class="fa fa-gears me-2 text-muted"></i> Parts Store</a></li>
+            <li><a class="dropdown-item" href="{{ route('customer.showroom') }}"><i class="fa fa-car me-2 text-muted"></i> Car Showroom</a></li>
             <li><hr class="dropdown-divider"></li>
-            <li><a class="dropdown-item text-warning" href="#"><i class="fa fa-wrench me-2"></i> Custom Build</a></li>
-            <li><a class="dropdown-item text-info" href="#"><i class="fa fa-cogs me-2"></i> Repair or Service</a></li>
+            <li><a class="dropdown-item text-warning" href="{{ route('customer.builder') }}"><i class="fa fa-wrench me-2"></i> Custom Build</a></li>
+            <li><a class="dropdown-item text-info" href="{{ route('customer.repair.dashboard') }}"><i class="fa fa-cogs me-2"></i> Repair or Service</a></li>
           </ul>
         </li>
 
@@ -106,19 +80,19 @@ $nav_wish_count = 0;
             <i class="fa fa-gavel me-1"></i> Auctions
           </a>
           <ul class="dropdown-menu shadow border-0" aria-labelledby="auctionDrop">
-            <li><a class="dropdown-item" href="#"><i class="fa fa-clock-o me-2 text-muted"></i> Live Auctions</a></li>
-            <li><a class="dropdown-item" href="#"><i class="fa fa-history me-2 text-muted"></i> My Bidding History</a></li>
+            <li><a class="dropdown-item" href="{{ route('customer.auction.lobby') }}"><i class="fa fa-clock-o me-2 text-muted"></i> Live Auctions</a></li>
+            <li><a class="dropdown-item" href="{{ route('customer.auction.history') }}"><i class="fa fa-history me-2 text-muted"></i> My Bidding History</a></li>
           </ul>
         </li>
 
         <li class="nav-item">
-          <a class="nav-link" href="#">
+          <a class="nav-link" href="{{ route('customer.orders') }}">
             <i class="fa fa-list-alt me-1"></i> Orders
           </a>
         </li>
 
         <li class="nav-item">
-          <a class="nav-link" href="#">
+          <a class="nav-link" href="{{ route('customer.reviews') }}">
             <i class="fa fa-comments-o me-1"></i> Reviews
           </a>
         </li>
@@ -127,22 +101,22 @@ $nav_wish_count = 0;
 
       <ul class="navbar-nav ms-auto ms-auto-custom mb-2 mb-lg-0 align-items-center">
         <li class="nav-item me-2">
-          <a class="nav-link position-relative" href="#" title="Wishlist">
+          <a class="nav-link position-relative" href="{{ route('customer.wishlist') }}" title="Wishlist">
             <i class="fa fa-heart text-danger fa-lg"></i>
-            @if ($nav_wish_count > 0)
+            @if ($navWishCount > 0)
                 <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style="font-size: 0.6rem;">
-                    {{ $nav_wish_count }}
+                    {{ $navWishCount }}
                 </span>
             @endif
           </a>
         </li>
 
         <li class="nav-item me-3">
-          <a class="nav-link position-relative" href="#" title="Cart">
+          <a class="nav-link position-relative" href="{{ route('customer.cart') }}" title="Cart">
             <i class="fa fa-shopping-cart fa-lg"></i>
-            @if ($nav_cart_count > 0)
+            @if ($navCartCount > 0)
                 <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-info text-dark" style="font-size: 0.6rem;">
-                    {{ $nav_cart_count }}
+                    {{ $navCartCount }}
                 </span>
             @endif
           </a>
@@ -150,13 +124,18 @@ $nav_wish_count = 0;
         
         <li class="nav-item dropdown">
           <a class="nav-link dropdown-toggle text-white fw-bold" href="#" id="userDrop" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-            <i class="fa fa-user-circle-o fa-lg me-1 text-primary"></i> {{ $nav_display_name }}
+            <i class="fa fa-user-circle-o fa-lg me-1 text-primary"></i> {{ $navDisplayName }}
           </a>
           <ul class="dropdown-menu dropdown-menu-end shadow border-0" aria-labelledby="userDrop">
-            <li><a class="dropdown-item" href="{{ url('/Customer/profile') }}"><i class="fa fa-user me-2"></i> My Profile</a></li>
-            <li><a class="dropdown-item" href="#"><i class="fa fa-shield me-2"></i> Warranty Claims</a></li>
+            <li><a class="dropdown-item" href="{{ route('customer.profile') }}"><i class="fa fa-user me-2"></i> My Profile</a></li>
+            <li><a class="dropdown-item" href="{{ route('customer.warranty.manage') }}"><i class="fa fa-shield me-2"></i> Warranty Claims</a></li>
             <li><hr class="dropdown-divider"></li>
-            <li><a class="dropdown-item text-danger" href="{{ url('/logout') }}"><i class="fa fa-sign-out me-2"></i> Logout</a></li>
+            <li>
+                <form action="{{ route('logout') }}" method="POST" class="d-inline">
+                    @csrf
+                    <button type="submit" class="dropdown-item text-danger border-0 bg-transparent"><i class="fa fa-sign-out me-2"></i> Logout</button>
+                </form>
+            </li>
           </ul>
         </li>
       </ul>

@@ -18,4 +18,7 @@ class Review extends Model
         'company_reply',
         'date_posted',
     ];
+
+    public function product() { return $this->belongsTo(Product::class, 'product_id', 'id'); }
+    public function car() { return $this->belongsTo(Car::class, 'car_id', 'id'); }
 }

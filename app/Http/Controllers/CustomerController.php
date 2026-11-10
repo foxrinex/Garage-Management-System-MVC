@@ -26,14 +26,9 @@ use Illuminate\Support\Facades\Storage;
 use App\Models\RepairPartsSelected;
 use App\Models\Message;
 use App\Models\WarrantyClaim;
-
-
-
-
-
-
-
-    
+use App\Models\Category;
+use App\Models\Setting;
+use App\Models\Tag;
 
 class CustomerController extends Controller
 {
@@ -1377,6 +1372,800 @@ class CustomerController extends Controller
         } else {
             return redirect($redirectTo)->with('error', 'Could not add to wishlist.');
         }
+    }
+
+    public function auctionHistory()
+    {
+        $userId = session('user_id');
+        $role = session('role');
+
+        if (!$userId || $role !== 'Customer') {
+            return redirect()->route('login');
+        }
+
+        // Fetch distinct auctions the customer has placed bids on, along with car details
+        $bids = AuctionBid::where('customer_id', $userId)
+            ->with(['auction.car'])
+            ->get();
+
+        // Group by auction to get unique auctions and compute max bid per auction for this customer
+        $myAuctions = $bids->groupBy('auction_id')->map(function ($auctionBids) use ($userId) {
+            $auction = $auctionBids->first()->auction;
+            $maxBid = $auctionBids->max('bid_amount');
+
+            return [
+                'id' => $auction ? $auction->id : null,
+                'end_time' => $auction ? $auction->end_time : null,
+                'status' => $auction ? $auction->status : null,
+                'current_bid' => $auction ? $auction->current_bid : 0,
+                'highest_bidder_id' => $auction ? $auction->highest_bidder_id : null,
+                'brand' => $auction && $auction->car ? $auction->car->brand : '',
+                'model' => $auction && $auction->car ? $auction->car->model : '',
+                'year' => $auction && $auction->car ? $auction->car->year : '',
+                'image' => $auction && $auction->car ? $auction->car->image : '',
+                'my_max' => $maxBid,
+            ];
+        })->sortByDesc('end_time')->values();
+
+        return view('customer.auction-history', compact('myAuctions'));
+    }
+
+    public function auctionLobby(Request $request)
+    {
+        $userId = session('user_id');
+        $role = session('role');
+
+        if (!$userId || $role !== 'Customer') {
+            return redirect()->route('login');
+        }
+
+        // Fetch current system year
+        $setting = Setting::first();
+        $currentSystemYear = $setting ? $setting->current_year : date('Y');
+
+        // Fetch categories for filter dropdown
+        $categories = Category::where('type', 'Car')->orderBy('category_name', 'ASC')->get();
+        $transmissions = ["Automatic", "Manual", "CVT", "DCT", "AMT"];
+
+        // Build query for active auctions with car and category relations
+        $query = Auction::where('status', 'Active')
+            ->with(['car.category']);
+
+        // Apply Filters
+        if ($request->filled('search')) {
+            $search = $request->input('search');
+            $query->whereHas('car', function ($q) use ($search) {
+                $q->where('model', 'like', "%{$search}%")
+                ->orWhere('brand', 'like', "%{$search}%");
+            });
+        }
+
+        if ($request->filled('cat_id')) {
+            $catId = $request->input('cat_id');
+            $query->whereHas('car', function ($q) use ($catId) {
+                $q->where('category_id', $catId);
+            });
+        }
+
+        if ($request->filled('min_price')) {
+            $query->where('current_bid', '>=', $request->input('min_price'));
+        }
+
+        if ($request->filled('max_price')) {
+            $query->where('current_bid', '<=', $request->input('max_price'));
+        }
+
+        if ($request->filled('min_year')) {
+            $minYear = $request->input('min_year');
+            $query->whereHas('car', function ($q) use ($minYear) {
+                $q->where('year', '>=', $minYear);
+            });
+        }
+
+        if ($request->filled('max_year')) {
+            $maxYear = $request->input('max_year');
+            $query->whereHas('car', function ($q) use ($maxYear) {
+                $q->where('year', '<=', $maxYear);
+            });
+        }
+
+        if ($request->filled('max_mileage')) {
+            $maxMileage = $request->input('max_mileage');
+            $query->whereHas('car', function ($q) use ($maxMileage) {
+                $q->where('mileage', '<=', $maxMileage);
+            });
+        }
+
+        if ($request->filled('trans')) {
+            $trans = $request->input('trans');
+            $query->whereHas('car', function ($q) use ($trans) {
+                $q->where('transmission', $trans);
+            });
+        }
+
+        $auctions = $query->orderBy('end_time', 'ASC')->get();
+
+        return view('customer.auction-lobby', compact('auctions', 'categories', 'transmissions', 'currentSystemYear'));
+    }
+
+   public function auctionView($id)
+    {
+        $userId = session('user_id');
+        $role = session('role');
+
+        if (!$userId || $role !== 'Customer') {
+            return redirect()->route('login');
+        }
+
+        // Fetch Auction with car and category relations
+        $auction = Auction::with(['car.category', 'bids.customer'])
+            ->where('id', $id)
+            ->first();
+
+        if (!$auction) {
+            return redirect()->route('customer.auction.lobby')->with('error', 'This vehicle is currently unavailable');
+        }
+
+        // Fetch Bid History ordered by time descending
+        $bidHistory = AuctionBid::with('customer')
+            ->where('auction_id', $id)
+            ->orderBy('bid_time', 'DESC')
+            ->get();
+
+        // Calculate minimum next bid
+        if (empty($auction->highest_bidder_id) || $auction->highest_bidder_id == 0) {
+            $minNextBid = $auction->start_price;
+        } else {
+            $minNextBid = $auction->current_bid + $auction->min_increment;
+        }
+
+        $isHighestBidder = ($auction->highest_bidder_id == $userId);
+
+        return view('customer.auction-view', compact('auction', 'bidHistory', 'minNextBid', 'isHighestBidder'));
+    }
+
+    public function builderSelectPart(Request $request)
+    {
+        $userId = session('user_id');
+        $role = session('role');
+
+        if (!$userId || $role !== 'Customer' || !$request->has('cat_id')) {
+            return redirect()->route('customer.builder');
+        }
+
+        $catId = $request->input('cat_id');
+
+        // 1. Fetch the category name
+        $category = Category::find($catId);
+        if (!$category) {
+            return redirect()->route('customer.builder');
+        }
+
+        // 2. Fetch tags from the database for the dropdown
+        $dbTags = Tag::all();
+
+        // 3. Determine Required Tags for compatibility (exclude current category)
+        $currentPartsTags = BuilderTemporary::where('user_id', $userId)
+            ->where('category_id', '!=', $catId)
+            ->join('products', 'builder_temporary.product_id', '=', 'products.id')
+            ->pluck('products.tags');
+
+        $requiredTags = [];
+
+        foreach ($currentPartsTags as $rawTags) {
+            if (empty($rawTags)) continue;
+            $tagsArray = explode(',', $rawTags);
+            $tempSpecific = [];
+            $hasBrand = false;
+
+            foreach ($tagsArray as $t) {
+                $t = trim($t);
+                if ($t !== "" && strtolower($t) !== "null" && strtolower($t) !== "universal") {
+                    $tempSpecific[] = $t;
+                    $hasBrand = true;
+                }
+            }
+
+            if ($hasBrand) {
+                if (empty($requiredTags)) {
+                    $requiredTags = $tempSpecific;
+                } else {
+                    $requiredTags = array_values(array_intersect($requiredTags, $tempSpecific));
+                }
+            }
+        }
+
+        // 4. Filtering and Sorting inputs
+        $filter = $request->input('filter', 'all');
+        $search = $request->input('search', '');
+        $tagFilter = $request->input('tag_filter', '');
+        $sort = $request->input('sort', 'name_asc');
+
+        // 5. Build Main Query
+        $query = Product::where('category_id', $catId);
+
+        if (!empty($requiredTags)) {
+            $query->where(function ($q) use ($requiredTags) {
+                $q->where('tags', 'like', '%Universal%')
+                ->orWhereNull('tags')
+                ->orWhere('tags', '');
+
+                foreach ($requiredTags as $reqTag) {
+                    $q->orWhere('tags', 'like', '%' . trim($reqTag) . '%');
+                }
+            });
+        }
+
+        if ($filter == 'available') {
+            $query->where('status', 'In Stock')->where('quantity', '>', 0);
+        } elseif ($filter == 'upcoming') {
+            $query->where('status', 'Upcoming');
+        } elseif ($filter == 'out_of_stock') {
+            $query->where('status', 'Out of Stock');
+        }
+
+        if (!empty($search)) {
+            $query->where(function ($q) use ($search) {
+                $q->where('product_name', 'like', "%{$search}%")
+                ->orWhere('tags', 'like', "%{$search}%");
+            });
+        }
+
+        if (!empty($tagFilter)) {
+            $query->where('tags', 'like', "%{$tagFilter}%");
+        }
+
+        if ($sort == 'price_low') {
+            $query->orderBy('price', 'ASC');
+        } elseif ($sort == 'price_high') {
+            $query->orderBy('price', 'DESC');
+        } elseif ($sort == 'name_desc') {
+            $query->orderBy('product_name', 'DESC');
+        } else {
+            $query->orderBy('product_name', 'ASC');
+        }
+
+        $products = $query->get();
+
+        return view('customer.builder-select-part', compact('category', 'catId', 'dbTags', 'products', 'filter', 'search', 'tagFilter', 'sort'));
+    }
+
+    public function carBuilder(Request $request)
+    {
+        $userId = session('user_id');
+        $role = session('role');
+
+        if (!$userId || $role !== 'Customer') {
+            return redirect()->route('login');
+        }
+
+        // 1. Save new selection from GET to Database if present
+        if ($request->has('cat_id') && $request->has('p_id')) {
+            $cId = $request->input('cat_id');
+            $pId = $request->input('p_id');
+
+            BuilderTemporary::updateOrCreate(
+                ['user_id' => $userId, 'category_id' => $cId],
+                ['product_id' => $pId]
+            );
+
+            return redirect()->route('customer.builder');
+        }
+
+        // 2. Fetch current progress
+        $dbSelections = BuilderTemporary::where('user_id', $userId)
+            ->pluck('product_id', 'category_id')
+            ->toArray();
+
+        // Fetch current cart items to check against stock levels
+        $currentCart = Cart::where('customer_id', $userId)
+            ->pluck('quantity', 'product_id')
+            ->toArray();
+
+        // 3. Fetch Categories (Mandatory and Optional Parts)
+        $mandatoryCats = Category::where('is_mandatory', 1)
+            ->where('type', 'Part')
+            ->orderBy('category_name', 'ASC')
+            ->get();
+
+        $optionalCats = Category::where('is_mandatory', 0)
+            ->where('type', 'Part')
+            ->orderBy('category_name', 'ASC')
+            ->get();
+
+        // 4. Logic to check if the ENTIRE build is already in the wishlist
+        $isBuildWishlisted = Wishlist::where('user_id', $userId)
+            ->whereNull('product_id')
+            ->exists();
+
+        $totalPrice = 0;
+        $totalHp = 0;
+        $hasUnavailableParts = false;
+        $buildStockExceeded = false;
+
+        // 5. --- COMPATIBILITY LOGIC ---
+        $allSelectedProductIds = array_values($dbSelections);
+        $isCompatible = true;
+        $contradictionError = "";
+        $commonTags = null;
+
+        if (count($allSelectedProductIds) > 1) {
+            // --- PART A: Common Tag Check ---
+            foreach ($allSelectedProductIds as $currentPid) {
+                $product = Product::find($currentPid);
+
+                if (!$product) {
+                    $isCompatible = false;
+                    continue;
+                }
+
+                $tagsString = $product->tags;
+                $currentProductTags = [];
+
+                if (empty($tagsString)) {
+                    $currentProductTags[] = 'universal';
+                } else {
+                    $tempTags = explode(',', $tagsString);
+                    foreach ($tempTags as $t) {
+                        $cleanedTag = strtolower(trim($t));
+                        if ($cleanedTag !== "") {
+                            $currentProductTags[] = $cleanedTag;
+                        }
+                    }
+                }
+
+                $currentIsUniversal = in_array('universal', $currentProductTags);
+
+                if ($commonTags === null) {
+                    $commonTags = $currentProductTags;
+                } else {
+                    $newCommon = [];
+                    $commonIsUniversal = in_array('universal', $commonTags);
+
+                    if ($currentIsUniversal) {
+                        $newCommon = $commonTags;
+                    } elseif ($commonIsUniversal) {
+                        $newCommon = $currentProductTags;
+                    } else {
+                        foreach ($commonTags as $ct) {
+                            if (in_array($ct, $currentProductTags)) {
+                                $newCommon[] = $ct;
+                            }
+                        }
+                    }
+                    $commonTags = $newCommon;
+                }
+            }
+
+            if (count($commonTags) === 0) {
+                $isCompatible = false;
+            }
+
+            // --- PART B: Contradiction Check (The "No-" Tag Logic) ---
+            foreach ($dbSelections as $catIdKey => $prodIdVal) {
+                $product = Product::find($prodIdVal);
+
+                if ($product && !empty($product->tags)) {
+                    $pTagsArr = explode(',', $product->tags);
+                    foreach ($pTagsArr as $tagStr) {
+                        $tag = strtolower(trim($tagStr));
+                        if (str_starts_with($tag, 'no-')) {
+                            $restrictedCatName = substr($tag, 3);
+
+                            foreach ($dbSelections as $checkCatId => $checkProdId) {
+                                $categoryModel = Category::find($checkCatId);
+                                if ($categoryModel && strtolower($categoryModel->category_name) == $restrictedCatName) {
+                                    $isCompatible = false;
+                                    $contradictionError = "One of your parts restricts the use of: " . ucfirst($restrictedCatName);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        return view('customer.car-builder', compact(
+            'dbSelections', 'currentCart', 'mandatoryCats', 'optionalCats', 
+            'isBuildWishlisted', 'totalPrice', 'totalHp', 'hasUnavailableParts', 
+            'buildStockExceeded', 'isCompatible', 'contradictionError', 'userId'
+        ));
+    }
+
+    public function viewCart()
+    {
+        $userId = session('user_id');
+        $role = session('role');
+
+        if (!$userId || $role !== 'Customer') {
+            return redirect()->route('login');
+        }
+
+        // Fetch items from the cart table joined with products using Eloquent
+        $items = Cart::with('product')
+            ->where('customer_id', $userId)
+            ->get();
+
+        $canPlaceOrder = true;
+
+        // Transform items to match view expectations smoothly
+        $cartItems = [];
+        $grandTotal = 0;
+
+        foreach ($items as $item) {
+            if (!$item->product) continue;
+
+            $subtotal = $item->product->price * $item->quantity;
+            $grandTotal += $subtotal;
+
+            $isAvailable = true;
+            $insufficientStock = false;
+
+            // Check general status/stock existence
+            if ($item->product->quantity <= 0 || $item->product->status != 'In Stock') {
+                $isAvailable = false;
+                $canPlaceOrder = false;
+            }
+
+            // Check if cart quantity exceeds available stock
+            if ($item->quantity > $item->product->quantity) {
+                $insufficientStock = true;
+                $canPlaceOrder = false;
+            }
+
+            $cartItems[] = [
+                'id' => $item->id,
+                'product_name' => $item->product->product_name,
+                'price' => $item->product->price,
+                'image' => $item->product->image,
+                'stock_qty' => $item->product->quantity,
+                'stock_status' => $item->product->status,
+                'quantity' => $item->quantity,
+                'subtotal' => $subtotal,
+                'is_available' => $isAvailable,
+                'insufficient_stock' => $insufficientStock,
+            ];
+        }
+
+        return view('customer.cart', compact('cartItems', 'grandTotal', 'canPlaceOrder'));
+    }
+
+    public function carTransaction(Request $request, $id)
+    {
+        $userId = session('user_id');
+        $role = session('role');
+
+        if (!$userId || $role !== 'Customer') {
+            return redirect()->route('login');
+        }
+
+        $carId = $id;
+        $auctionId = $request->query('auction_id');
+        $isAuction = !empty($auctionId);
+
+        // Fetch the car with its category relation
+        $carQuery = Car::with('category')->where('id', $carId);
+
+        if (!$isAuction) {
+            $carQuery->where('quantity', '>', 0)->where('status', 'In Stock');
+        }
+
+        $car = $carQuery->first();
+
+        if (!$car) {
+            $redirectRoute = $isAuction ? route('customer.auction.lobby') : route('customer.showroom');
+            return redirect()->to($redirectRoute)->with('error', 'Vehicle not available');
+        }
+
+        // Determine the price and purchase target route/action
+        $finalPrice = $car->price;
+        $purchaseAction = route('customer.car.purchase.submit'); // Adjust to your Laravel purchase submit route name
+        $headingText = "Checkout Summary";
+
+        if ($isAuction) {
+            $auctionData = Auction::where('id', $auctionId)->where('status', 'Active')->first();
+
+            if ($auctionData) {
+                $finalPrice = $auctionData->reserve_price;
+                $purchaseAction = route('customer.auction.purchase.submit'); // Adjust to your Laravel auction purchase route name
+                $headingText = "Auction Settlement";
+            } else {
+                return redirect()->route('customer.auction.view', $auctionId)->with('error', 'Auction is no longer active');
+            }
+        }
+
+        return view('customer.car-transaction', compact(
+            'car', 'finalPrice', 'isAuction', 'auctionId', 'purchaseAction', 'headingText'
+        ));
+    }
+
+    public function carView($id)
+    {
+        $userId = session('user_id');
+        $role = session('role');
+
+        if (!$userId || $role !== 'Customer') {
+            return redirect()->route('login');
+        }
+
+        $carId = $id;
+
+        // 1. Fetch car details with category
+        $car = Car::with('category')->where('id', $carId)->first();
+
+        if (!$car) {
+            return redirect()->route('customer.showroom')->with('error', 'Car not found');
+        }
+
+        // 2. Check purchase status
+        $hasPurchased = Order::where('customer_id', $userId)->where('car_id', $carId)->exists();
+
+        // 3. Check for existing review
+        $myReview = Review::where('user_id', $userId)->where('car_id', $carId)->first();
+
+        // 4. Check wishlist status
+        $isWishlisted = Wishlist::where('user_id', $userId)->where('car_id', $carId)->exists();
+
+        // 5. Fetch all reviews with customer details
+        $reviews = Review::with('customer')
+            ->where('car_id', $carId)
+            ->orderBy('date_posted', 'DESC')
+            ->get();
+
+        return view('customer.car-view', compact(
+            'car', 'carId', 'userId', 'hasPurchased', 'myReview', 'isWishlisted', 'reviews'
+        ));
+    }
+
+    public function checkoutReview()
+    {
+        $userId = session('user_id');
+        $role = session('role');
+
+        if (!$userId || $role !== 'Customer') {
+            return redirect()->route('login');
+        }
+
+        // Fetch user details for the "Delivery Info" section using Eloquent
+        $user = Customer::where('user_id', $userId)->first();
+
+        // Fetch cart items for the "Order Summary" section with products relation
+        $items = Cart::with('product')
+            ->where('customer_id', $userId)
+            ->get();
+
+        return view('customer.checkout-review', compact('user', 'items'));
+    }
+
+    public function claimWarrantyForm(Request $request)
+    {
+        $userId = session('user_id');
+        $role = session('role');
+
+        if (!$userId || $role !== 'Customer') {
+            return redirect()->route('login');
+        }
+
+        if (!$request->has('order_id') || (!$request->has('product_id') && !$request->has('car_id'))) {
+            return redirect()->route('customer.history')->with('error', 'Invalid warranty request');
+        }
+
+        $orderId = $request->query('order_id');
+        $itemName = "";
+        $hasRegular = 0;
+        $hasReplacement = 0;
+
+        // Check if we are claiming for a CAR
+        if ($request->has('car_id')) {
+            $carId = $request->query('car_id');
+            $car = Car::find($carId);
+
+            if ($car) {
+                $itemName = $car->brand . " " . $car->model;
+                $hasRegular = $car->regular_warranty;
+                $hasReplacement = $car->replacement_warranty;
+            }
+        } 
+        // Otherwise, check if we are claiming for a PRODUCT
+        elseif ($request->has('product_id')) {
+            $productId = $request->query('product_id');
+            $product = Product::find($productId);
+
+            if ($product) {
+                $itemName = $product->product_name;
+                $hasRegular = $product->regular_warranty;
+                $hasReplacement = $product->replacement_warranty;
+            }
+        }
+
+        if (empty($itemName)) {
+            return redirect()->route('customer.history')->with('error', 'Item not found');
+        }
+
+        return view('customer.claim-warranty', compact(
+            'orderId', 'itemName', 'hasRegular', 'hasReplacement'
+        ));
+    }
+
+    public function contactSupport()
+    {
+        $userId = session('user_id');
+        $role = session('role');
+
+        if (!$userId || $role !== 'Customer') {
+            return redirect()->route('login');
+        }
+
+        // Fetch user info using Eloquent
+        $userInfo = Customer::where('user_id', $userId)->first();
+        
+        $fullName = $userInfo ? $userInfo->fname . " " . $userInfo->lname : '';
+        $email = $userInfo ? $userInfo->email_address : '';
+
+        return view('customer.contact', compact('fullName', 'email'));
+    }
+
+    public function store(Request $request)
+    {
+        $userId = session('user_id');
+        $role = session('role');
+
+        if (!$userId || $role !== 'Customer') {
+            return redirect()->route('login');
+        }
+
+        $search = $request->query('search', '');
+        $catFilter = $request->query('category_id', '');
+        $statusFilter = $request->query('status', 'All');
+        $tagFilter = $request->query('tag_filter', '');
+
+        // 1. Fetch User's current wishlist item IDs
+        $wishlistIds = Wishlist::where('user_id', $userId)
+            ->whereNotNull('product_id')
+            ->pluck('product_id')
+            ->toArray();
+
+        // 2. Fetch ONLY 'Part' Categories
+        $categories = Category::where('type', 'Part')
+            ->orderBy('category_name', 'ASC')
+            ->get();
+
+        // 3. Fetch all available tags
+        $allAvailableTags = Tag::orderBy('tag_name', 'ASC')->get();
+
+        // 4. Build Product Query
+        $query = Product::with('category')
+            ->whereHas('category', function ($q) {
+                $q->where('type', 'Part');
+            });
+
+        if (!empty($search)) {
+            $query->where(function ($q) use ($search) {
+                $q->where('product_name', 'LIKE', "%{$search}%")
+                ->orWhere('description', 'LIKE', "%{$search}%")
+                ->orWhere('tags', 'LIKE', "%{$search}%");
+            });
+        }
+
+        if (!empty($catFilter)) {
+            $query->where('category_id', $catFilter);
+        }
+
+        if ($statusFilter !== 'All') {
+            $query->where('status', $statusFilter);
+        }
+
+        if (!empty($tagFilter)) {
+            $query->where('tags', 'LIKE', "%{$tagFilter}%");
+        }
+
+        $products = $query->orderBy('id', 'DESC')->get();
+
+        // Fetch current cart quantities for the user to compute stock limits
+        $cartQuantities = Cart::where('customer_id', $userId)
+            ->select('product_id', \DB::raw('SUM(quantity) as in_cart'))
+            ->groupBy('product_id')
+            ->pluck('in_cart', 'product_id')
+            ->toArray();
+
+        return view('customer.store', compact(
+            'products', 'categories', 'allAvailableTags', 'wishlistIds', 
+            'cartQuantities', 'search', 'catFilter', 'statusFilter', 'tagFilter', 'userId'
+        ));
+    }
+
+    public function history()
+    {
+        $userId = session('user_id');
+        $role = session('role');
+
+        if (!$userId || $role !== 'Customer') {
+            return redirect()->route('login');
+        }
+
+        // Fetch orders with product, car, and warranty claim details using Eloquent joins/relations
+        $orders = Order::with(['product', 'car', 'warrantyClaim'])
+            ->where('customer_id', $userId)
+            ->orderBy('id', 'DESC')
+            ->get();
+
+        return view('customer.history', compact('orders'));
+    }
+
+    public function dashboard()
+    {
+        $userId = session('user_id');
+        $role = session('role');
+
+        if (!$userId || $role !== 'Customer') {
+            return redirect()->route('login');
+        }
+
+        // Fetch Customer Profile Info with User relationship (username)
+        $customer = Customer::with('user')->where('user_id', $userId)->first();
+
+        // Fetch 5 most recent orders including Products and Cars relations
+        $recentOrders = Order::with(['product', 'car'])
+            ->where('customer_id', $userId)
+            ->orderBy('id', 'DESC')
+            ->limit(5)
+            ->get();
+
+        // Fetch 5 most recent repairs
+        $recentRepairs = CarRepair::where('customer_id', $userId)
+            ->orderBy('repair_id', 'DESC')
+            ->limit(5)
+            ->get();
+
+        // Calculate cart count from Database
+        $cartCount = Cart::where('customer_id', $userId)->sum('quantity');
+
+        // Calculate wishlist count (products or cars present)
+        $wishCount = Wishlist::where('user_id', $userId)
+            ->where(function($query) {
+                $query->whereHas('product')
+                    ->orWhereHas('car');
+            })
+            ->count();
+
+        return view('customer.index', compact(
+            'customer', 'recentOrders', 'recentRepairs', 'cartCount', 'wishCount'
+        ));
+    }
+
+    public function myReviews()
+    {
+        $userId = session('user_id');
+        $role = session('role');
+
+        if (!$userId || $role !== 'Customer') {
+            return redirect()->route('login');
+        }
+
+        $reviews = Review::with(['product', 'car'])
+            ->where('user_id', $userId)
+            ->orderBy('date_posted', 'DESC')
+            ->get();
+
+        return view('customer.my-reviews', compact('reviews'));
+    }
+
+    public function orderItem($id)
+    {
+        $userId = session('user_id');
+        $role = session('role');
+
+        if (!$userId || $role !== 'Customer') {
+            return redirect()->route('login');
+        }
+
+        $product = Product::find($id);
+
+        if (!$product) {
+            return redirect()->route('customer.store')->with('error', 'Product not found.');
+        }
+
+        return view('customer.order-item', compact('product'));
     }
 
 }

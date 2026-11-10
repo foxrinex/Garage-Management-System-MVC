@@ -41,6 +41,27 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/customer/send-message', [CustomerController::class, 'sendMessage'])->name('customer.message.send');
     Route::post('/customer/submit-warranty', [CustomerController::class, 'submitWarrantyClaim'])->name('customer.warranty.submit');
     Route::get('/customer/wishlist-handle/{id}', [CustomerController::class, 'wishlistHandle'])->name('customer.wishlist.handle');
+    Route::get('/customer/auction-history', [CustomerController::class, 'auctionHistory'])->name('customer.auction.history');
+    Route::get('/customer/auction-lobby', [CustomerController::class, 'auctionLobby'])->name('customer.auction.lobby');
+    Route::get('/customer/auction-view/{id}', [CustomerController::class, 'auctionView'])->name('customer.auction.view');
+    Route::get('/customer/builder-select-part', [CustomerController::class, 'builderSelectPart'])->name('customer.builder.select');
+    Route::get('/customer/car-builder', [CustomerController::class, 'carBuilder'])->name('customer.builder');
+    Route::get('/customer/cart', [CustomerController::class, 'viewCart'])->name('customer.cart');
+    Route::get('/customer/car-transaction/{id}', [CustomerController::class, 'carTransaction'])->name('customer.car.transaction');
+    Route::get('/customer/car-view/{id}', [CustomerController::class, 'carView'])->name('customer.car.view');
+    Route::get('/customer/checkout-review', [CustomerController::class, 'checkoutReview'])->name('customer.checkout.review');
+    Route::get('/customer/claim-warranty', [CustomerController::class, 'claimWarrantyForm'])->name('customer.warranty.claim.form');
+    Route::get('/customer/contact', [CustomerController::class, 'contactSupport'])->name('customer.contact');
+    Route::get('/customer/store', [CustomerController::class, 'store'])->name('customer.store');
+    Route::get('/customer/history', [CustomerController::class, 'history'])->name('customer.history');
+    Route::get('/customer/dashboard', [CustomerController::class, 'dashboard'])->name('customer.dashboard');
+    Route::get('/customer/my-reviews', [CustomerController::class, 'myReviews'])->name('customer.my.reviews');
+    Route::get('/customer/order-item/{id}', [CustomerController::class, 'orderItem'])->name('customer.order.item');
+
+
+
+
+
 
 
     Route::get('/employee/auction-delete/{id}', [EmployeeController::class, 'terminateAuction'])->name('employee.auction.delete');

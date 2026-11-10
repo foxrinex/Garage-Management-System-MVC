@@ -1,13 +1,12 @@
 <?php
 namespace App\Models;
-
 use Illuminate\Database\Eloquent\Model;
-
 class Customer extends Model
 {
     protected $table = 'customer';
-    protected $primaryKey = 'id'; // or 'customer_id' if that's what your table uses
-    public $timestamps = false; // Set to true if your table has created_at/updated_at
+    protected $primaryKey = 'user_id';
+    public $incrementing = false; // Set to true if your table has a separate auto-incrementing id column
+    public $timestamps = false;
 
     protected $fillable = [
         'user_id',
@@ -18,6 +17,10 @@ class Customer extends Model
         'address',
         'gender',
     ];
+
+    /**
+     * Relationship to the User model.
+     */
     public function user()
     {
         return $this->belongsTo(User::class, 'user_id', 'uid');
