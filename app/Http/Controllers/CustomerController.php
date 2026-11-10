@@ -269,7 +269,7 @@ class CustomerController extends Controller
         }
 
         // Determine redirection fallback
-        $redirect = $request->header('referer', route('car.builder'));
+        $redirect = $request->header('referer', route('customer.builder'));
         $urlParts = parse_url($redirect);
         $path = $urlParts['path'] ?? route('car.builder');
         $queryParams = [];
@@ -1071,7 +1071,7 @@ class CustomerController extends Controller
             ]);
 
             if ($repair) {
-                return redirect()->route('repair.dashboard')->with('success', 'Request submitted successfully');
+                return redirect()->route('customer.repair.dashboard')->with('success', 'Request submitted successfully');
             } else {
                 return redirect()->route('repair.add')->with('error', 'An error occurred during submission');
             }
@@ -1095,7 +1095,7 @@ class CustomerController extends Controller
             ->first();
 
         if (!$repair) {
-            return redirect()->route('repair.dashboard');
+            return redirect()->route('customer.repair.dashboard');
         }
 
         $currentStatus = $repair->status;
@@ -1105,12 +1105,12 @@ class CustomerController extends Controller
             $deleted = $repair->delete();
 
             if ($deleted) {
-                return redirect()->route('repair.dashboard')->with('success', 'Request deleted successfully!');
+                return redirect()->route('customer.repair.dashboard')->with('success', 'Request deleted successfully!');
             } else {
-                return redirect()->route('repair.dashboard')->with('error', 'Unknown error occurred');
+                return redirect()->route('customer.repair.dashboard')->with('error', 'Unknown error occurred');
             }
         } else {
-            return redirect()->route('repair.dashboard')->with('error', 'In-progress repairs cannot be deleted');
+            return redirect()->route('customer.repair.dashboard')->with('error', 'In-progress repairs cannot be deleted');
         }
     }
 
@@ -1131,7 +1131,7 @@ class CustomerController extends Controller
                     ->first();
 
                 if (!$repair) {
-                    return redirect()->route('repair.dashboard');
+                    return redirect()->route('customer.repair.dashboard');
                 }
 
                 if ($repair->status === 'Awaiting Payment') {
@@ -2914,5 +2914,74 @@ class CustomerController extends Controller
             ->get();
 
         return view('customer.wishlist', compact('wishlistItems'));
+    }
+
+    public function orders()
+    {
+        $userId = session('user_id');
+        $role = session('role');
+
+        if (!$userId || $role !== 'Customer') {
+            return redirect()->route('login');
+        }
+
+        $orders = Order::with(['product', 'car'])
+            ->where('customer_id', $userId)
+            ->orderBy('id', 'DESC')
+            ->get();
+
+        return view('customer.orders', compact('orders'));
+    }
+
+    public function reviews()
+    {
+        $userId = session('user_id');
+        $role = session('role');
+
+        if (!$userId || $role !== 'Customer') {
+            return redirect()->route('login');
+        }
+
+        // Fetch reviews written by or relevant to this customer
+        $reviews = Review::where('user_id', $userId)->get(); // Adjust query as needed for your schema
+
+        return view('customer.my-reviews', compact('reviews'));
+    }
+
+    public function warrantyManage()
+    {
+        $userId = session('user_id');
+        $role = session('role');
+
+        if (!$userId || $role !== 'Customer') {
+            return redirect()->route('login');
+        }
+
+        // Fetch orders / purchased items for the order history page
+        $orders = Order::with(['product', 'car'])
+            ->where('customer_id', $userId)
+            ->orderBy('id', 'DESC')
+            ->get();
+
+        // Fetch existing warranty claims if needed
+        $warrantyClaims = WarrantyClaim::where('customer_id', $userId)
+            ->orderBy('id', 'DESC')
+            ->get();
+
+        // Render the order history / warranty management view
+        return view('customer.history', compact('orders', 'warrantyClaims'));
+    }
+
+    public function Builder()
+    {
+        $userId = session('user_id');
+        $role = session('role');
+
+        if (!$userId || $role !== 'Customer') {
+            return redirect()->route('login');
+        }
+
+        // Add any necessary data retrieval for your car/part builder here
+        return view('customer.builder');
     }
 }

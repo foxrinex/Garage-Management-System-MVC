@@ -37,7 +37,9 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/customer/repair-cancel/{id}', [CustomerController::class, 'cancelRepairRequest'])->name('customer.repair.cancel');
     Route::get('/customer/repair-decline-parts/{id}', [CustomerController::class, 'declineRepairParts'])->name('customer.repair.decline.parts');
     Route::get('/customer/my-reviews/delete/{id}', [CustomerController::class, 'deleteMyReview'])->name('customer.review.delete.my');
+
     Route::post('/customer/send-message', [CustomerController::class, 'sendMessage'])->name('customer.message.send');
+    
     Route::post('/customer/submit-warranty', [CustomerController::class, 'submitWarrantyClaim'])->name('customer.warranty.submit');
     Route::get('/customer/wishlist-handle/{id}', [CustomerController::class, 'wishlistHandle'])->name('customer.wishlist.handle');
     Route::get('/customer/auction-history', [CustomerController::class, 'auctionHistory'])->name('customer.auction.history');
@@ -50,7 +52,9 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/customer/car-view/{id}', [CustomerController::class, 'carView'])->name('customer.car.view');
     Route::get('/customer/checkout-review', [CustomerController::class, 'checkoutReview'])->name('customer.checkout.review');
     Route::get('/customer/claim-warranty', [CustomerController::class, 'claimWarrantyForm'])->name('customer.warranty.claim.form');
+    
     Route::get('/customer/contact', [CustomerController::class, 'contactSupport'])->name('customer.contact');
+
     Route::get('/customer/store', [CustomerController::class, 'store'])->name('customer.store');
     Route::get('/customer/history', [CustomerController::class, 'history'])->name('customer.history');
     Route::get('/customer/dashboard', [CustomerController::class, 'dashboard'])->name('customer.dashboard');
@@ -71,6 +75,11 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/customer/showroom', [CustomerController::class, 'showroom'])->name('customer.showroom');
     Route::get('/customer/build-details/{id}', [CustomerController::class, 'viewBuildDetails'])->name('customer.build.details');
     Route::get('/customer/wishlist', [CustomerController::class, 'wishlist'])->name('customer.wishlist');
+    Route::get('/customer/orders', [CustomerController::class, 'orders'])->name('customer.orders');
+    Route::get('/customer/reviews', [CustomerController::class, 'reviews'])->name('customer.reviews');
+    Route::get('/customer/history', [CustomerController::class, 'warrantyManage'])->name('customer.history');
+    Route::get('/customer/warranty-claims', [CustomerController::class, 'warrantyManage'])->name('customer.warranty.manage');
+    Route::get('/customer/builder', [CustomerController::class, 'builder'])->name('customer.show.builder');
     
     
 

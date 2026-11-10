@@ -15,4 +15,14 @@ class Wishlist extends Model
         'car_id',
         'date_added',
     ];
+
+    public function product()
+    {
+        return $this->belongsTo(Product::class, 'product_id');
+    }
+
+    public function car()
+    {
+        return $this->belongsTo(Car::class, 'car_id');
+    }
 }

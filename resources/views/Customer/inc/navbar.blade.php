@@ -86,7 +86,7 @@
         </li>
 
         <li class="nav-item">
-          <a class="nav-link" href="{{ route('customer.orders') }}">
+          <a class="nav-link" href="{{ route('customer.history') }}">
             <i class="fa fa-list-alt me-1"></i> Orders
           </a>
         </li>

@@ -23,4 +23,9 @@ class Product extends Model
         'tags',
         'hp',
     ];
+
+    public function category()
+    {
+        return $this->belongsTo(Category::class, 'category_id'); // adjust foreign key column name if different
+    }
 }

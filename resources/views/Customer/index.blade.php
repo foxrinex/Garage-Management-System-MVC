@@ -77,7 +77,7 @@
             </div>
             
             <div class="col-md-3 mb-3">
-                <a href="{{ route('customer.car.builder') }}" class="stat-card-link">
+                <a href="{{ route('customer.show.builder') }}" class="stat-card-link">
                     <div class="card shadow-sm border-0 bg-warning p-3 h-100 d-flex flex-column justify-content-center">
                         <i class="fa fa-wrench icon-bg text-dark"></i>
                         <h5 class="text-uppercase small mb-1 text-dark" style="letter-spacing: 1px;">Custom Build</h5>
@@ -221,7 +221,7 @@
                             <a href="{{ route('customer.repair.dashboard') }}" class="btn btn-success text-white p-3 text-start">
                                 <i class="fa fa-wrench me-2"></i> Repair Your Car
                             </a>
-                            <a href="{{ route('customer.warranty.claim.form') }}" class="btn btn-outline-dark p-3 text-start">
+                            <a href="{{ route('customer.history') }}" class="btn btn-outline-dark p-3 text-start">
                                 <i class="fa fa-shield me-2"></i> File Warranty Claim
                             </a>
                         </div>

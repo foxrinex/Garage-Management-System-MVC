@@ -227,7 +227,9 @@
 
                         @if ($repair->status == 'Pending')
                             <div class="d-grid mt-4">
-                                <a href="#" class="btn btn-outline-danger btn-sm">
+                                <a href="{{ route('customer.repair.cancel', ['id' => $repair->repair_id]) }}" 
+                                class="btn btn-outline-danger btn-sm"
+                                onclick="return confirm('Are you sure you want to cancel this request?');">
                                     Cancel This Request
                                 </a>
                             </div>
