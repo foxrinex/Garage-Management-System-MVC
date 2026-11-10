@@ -41,6 +41,37 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/customer/send-message', [CustomerController::class, 'sendMessage'])->name('customer.message.send');
     Route::post('/customer/submit-warranty', [CustomerController::class, 'submitWarrantyClaim'])->name('customer.warranty.submit');
     Route::get('/customer/wishlist-handle/{id}', [CustomerController::class, 'wishlistHandle'])->name('customer.wishlist.handle');
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    Route::get('/employee/auction-delete/{id}', [EmployeeController::class, 'terminateAuction'])->name('employee.auction.delete');
+    Route::get('/employee/auction-end/{id}', [EmployeeController::class, 'endAuction'])->name('employee.auction.end');
+    Route::post('/employee/car-add', [EmployeeController::class, 'storeCar'])->name('employee.car.store');
+    Route::get('/employee/car-delete/{id}', [EmployeeController::class, 'deleteCar'])->name('employee.car.delete');
+    Route::post('/employee/car-edit/{id}', [EmployeeController::class, 'updateCar'])->name('employee.car.update');
+    Route::post('/employee/car-review-reply', [EmployeeController::class, 'replyToReview'])->name('employee.car.review.reply');
+    Route::post('/employee/message-delete', [EmployeeController::class, 'deleteMessage'])->name('employee.message.delete');
+    Route::post('/employee/inventory-action', [EmployeeController::class, 'handleInventoryAction'])->name('employee.inventory.action');
+    Route::get('/employee/product-delete/{id}', [EmployeeController::class, 'deleteProduct'])->name('employee.product.delete');
+    Route::post('/employee/product-edit/{id}', [EmployeeController::class, 'updateProduct'])->name('employee.product.update');
+    Route::post('/employee/profile-edit', [EmployeeController::class, 'updateProfile'])->name('employee.profile.update');
+    Route::post('/employee/repair-update', [EmployeeController::class, 'handleRepairAction'])->name('employee.repair.action');
+    Route::post('/employee/reply-review', [EmployeeController::class, 'replyToProductReview'])->name('employee.review.reply');
+    Route::get('/employee/warranty-status/{id}', [EmployeeController::class, 'updateWarrantyStatus'])->name('employee.warranty.status');
+
+
 });
 
 
