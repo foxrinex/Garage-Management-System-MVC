@@ -36,7 +36,6 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/customer/repair-add', [CustomerController::class, 'storeRepairRequest'])->name('customer.repair.store');
     Route::get('/customer/repair-cancel/{id}', [CustomerController::class, 'cancelRepairRequest'])->name('customer.repair.cancel');
     Route::get('/customer/repair-decline-parts/{id}', [CustomerController::class, 'declineRepairParts'])->name('customer.repair.decline.parts');
-    Route::get('/customer/repair-transaction/{id}', [CustomerController::class, 'repairTransaction'])->name('customer.repair.transaction');
     Route::get('/customer/my-reviews/delete/{id}', [CustomerController::class, 'deleteMyReview'])->name('customer.review.delete.my');
     Route::post('/customer/send-message', [CustomerController::class, 'sendMessage'])->name('customer.message.send');
     Route::post('/customer/submit-warranty', [CustomerController::class, 'submitWarrantyClaim'])->name('customer.warranty.submit');
@@ -57,7 +56,23 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/customer/dashboard', [CustomerController::class, 'dashboard'])->name('customer.dashboard');
     Route::get('/customer/my-reviews', [CustomerController::class, 'myReviews'])->name('customer.my.reviews');
     Route::get('/customer/order-item/{id}', [CustomerController::class, 'orderItem'])->name('customer.order.item');
-
+    Route::get('/customer/product/{id}', [CustomerController::class, 'viewProduct'])->name('customer.product.view');
+    Route::post('/customer/product/{id}/check-stock', [CustomerController::class, 'checkProductStock'])->name('customer.product.check.stock');
+    Route::get('/customer/profile', [CustomerController::class, 'profile'])->name('customer.profile');
+    Route::get('/customer/profile/edit', [CustomerController::class, 'editProfile'])->name('customer.profile.edit');
+    Route::get('/customer/repair-add', [CustomerController::class, 'createRepairForm'])->name('customer.repair.add');
+    Route::get('/customer/repair-dashboard', [CustomerController::class, 'repairDashboard'])->name('customer.repair.dashboard');
+    Route::get('/customer/repair-transaction/{id}', [CustomerController::class, 'showRepairTransaction'])->name('customer.repair.transaction');
+    Route::get('/customer/repair-transaction-process/{id}', [CustomerController::class, 'repairTransaction'])->name('customer.repair.transaction.process');
+    Route::get('/customer/repair-view/{id}', [CustomerController::class, 'repairView'])->name('customer.repair.view');
+    Route::get('/customer/saved-builds', [CustomerController::class, 'savedBuilds'])->name('customer.saved.builds');
+    Route::get('/customer/select-order', [CustomerController::class, 'selectOrder'])->name('customer.warranty.select.order');
+    Route::get('/customer/settings', [CustomerController::class, 'settings'])->name('customer.settings');
+    Route::get('/customer/showroom', [CustomerController::class, 'showroom'])->name('customer.showroom');
+    Route::get('/customer/build-details/{id}', [CustomerController::class, 'viewBuildDetails'])->name('customer.build.details');
+    Route::get('/customer/wishlist', [CustomerController::class, 'wishlist'])->name('customer.wishlist');
+    
+    
 
 
 
