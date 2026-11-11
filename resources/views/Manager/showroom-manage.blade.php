@@ -249,7 +249,7 @@
                 <div class="d-flex justify-content-between align-items-center mb-4">
                     <h3 class="fw-bold m-0">Available Vehicles</h3>
                     <div>
-                        <a href="#" class="btn btn-success btn-add-large">
+                        <a href="{{ route('manager.car.add') }}" class="btn btn-success btn-add-large">
                             <i class="fa fa-plus-circle me-2"></i> Add New Vehicle
                         </a>
                     </div>
@@ -276,7 +276,8 @@
                                         <div class="auction-badge"><i class="fa fa-gavel"></i> IN AUCTION</div>
                                     @endif
 
-                                    <a href="#">
+                                    <!-- Clickable Image to View Car -->
+                                    <a href="{{ route('manager.car.view', $car->id) }}">
                                         <img src="{{ asset('uploads/' . $car->image) }}" 
                                              class="car-img-top"
                                              onerror="this.src='https://via.placeholder.com/300x180?text=No+Image'">
@@ -288,7 +289,8 @@
                                             <h6 class="text-success fw-bold m-0">${{ number_format($car->price) }}</h6>
                                         </div>
                                         <div class="d-flex justify-content-between align-items-center">
-                                            <a href="#" class="car-link">
+                                            <!-- Clickable Title to View Car -->
+                                            <a href="{{ route('manager.car.view', $car->id) }}" class="car-link">
                                                 <h5 class="card-title fw-bold m-0">{{ $car->model }}</h5>
                                             </a>
                                             <span class="wishlist-star">
@@ -321,15 +323,18 @@
                                                         <i class="fa fa-trash"></i>
                                                     </button>
                                                 @else
-                                                    <a href="#" class="btn btn-sm btn-outline-primary flex-grow-1">
+                                                    <!-- Working Edit Button -->
+                                                    <a href="{{ route('manager.car.edit', $car->id) }}" class="btn btn-sm btn-outline-primary flex-grow-1">
                                                         <i class="fa fa-edit"></i> Edit
                                                     </a>
-                                                    <button onclick="deleteCar({{ $car->id }})" class="btn btn-sm btn-outline-danger">
+                                                    <!-- Working Delete Button -->
+                                                    <button onclick="deleteCar('{{ route('manager.car.delete', $car->id) }}')" class="btn btn-sm btn-outline-danger">
                                                         <i class="fa fa-trash"></i>
                                                     </button>
                                                 @endif
                                             </div>
-                                            <a href="#" class="btn btn-sm btn-light border w-100">
+                                            <!-- Manage Reviews Button -->
+                                            <a href="{{ route('manager.inventory.reviews', $car->id) }}" class="btn btn-sm btn-light border w-100">
                                                 <i class="fa fa-comments"></i> Manage Reviews
                                             </a>
                                         </div>
@@ -350,8 +355,10 @@
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-        function deleteCar(id) {
-            window.location.href = "req/car-delete.php?id=" + id;
+        function deleteCar(deleteUrl) {
+            if (confirm('Are you sure you want to delete this vehicle?')) {
+                window.location.href = deleteUrl;
+            }
         }
     </script>
 </body>

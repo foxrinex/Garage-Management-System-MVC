@@ -61,7 +61,7 @@
             <div class="row">
                 <div class="col-lg-3 col-md-4 mb-4">
                     <div class="filter-section shadow-sm">
-                        <form action="{{ route('manager.auction.pending') }}" method="GET">
+                        <form id="filterForm" action="{{ route('manager.auction.pending') }}" method="GET">
                             
                             <h6 class="fw-bold mb-3"><i class="fa fa-filter me-2"></i>Filters</h6>
                             
@@ -107,16 +107,16 @@
                             <div class="mb-3">
                                 <label class="small text-muted fw-bold">Winning Bid ($)</label>
                                 <div class="input-group input-group-sm">
-                                    <input type="number" name="min_price" class="form-control" placeholder="Min" value="{{ $minPrice }}">
-                                    <input type="number" name="max_price" class="form-control" placeholder="Max" value="{{ $maxPrice }}">
+                                    <input type="number" name="min_price" id="min_price" class="form-control" placeholder="Min" value="{{ $minPrice }}" min="0" step="any">
+                                    <input type="number" name="max_price" id="max_price" class="form-control" placeholder="Max" value="{{ $maxPrice }}" min="0" step="any">
                                 </div>
                             </div>
 
                             <div class="mb-4">
                                 <label class="small text-muted fw-bold">Year (1900 - {{ $currentSystemYear }})</label>
                                 <div class="input-group input-group-sm">
-                                    <input type="number" name="min_year" class="form-control" placeholder="From" value="{{ $minYear }}">
-                                    <input type="number" name="max_year" class="form-control" placeholder="To" value="{{ $maxYear }}">
+                                    <input type="number" name="min_year" id="min_year" class="form-control" placeholder="From" value="{{ $minYear }}" min="1900" max="{{ $currentSystemYear }}">
+                                    <input type="number" name="max_year" id="max_year" class="form-control" placeholder="To" value="{{ $maxYear }}" min="1900" max="{{ $currentSystemYear }}">
                                 </div>
                             </div>
 
@@ -134,15 +134,17 @@
                             <div class="card payment-card shadow-sm mb-4">
                                 <div class="row g-0">
                                     <div class="col-xl-4 col-lg-5">
-                                        <img src="{{ asset('uploads/' . $p->car->image) }}" class="car-img-aside" onerror="this.src='https://via.placeholder.com/400x250?text=Vehicle'">
+                                        <img src="{{ asset('uploads/' . optional($p->car)->image) }}" class="car-img-aside" onerror="this.src='https://via.placeholder.com/400x250?text=Vehicle'">
                                     </div>
                                     <div class="col-xl-5 col-lg-7 p-4">
                                         <div class="mb-3">
                                             <span class="section-label text-success">Winning Bidder</span>
-                                            <h5 class="fw-bold mb-1">{{ optional($p->highestBidder)->fname . " " . optional($p->highestBidder)->lname }}</h5>
+                                            <h5 class="fw-bold mb-1">
+                                                {{ optional(optional($p->highestBidder)->customer)->fname . " " . optional(optional($p->highestBidder)->customer)->lname }}
+                                            </h5>
                                             <div class="text-muted small">
-                                                <i class="fa fa-envelope me-2"></i>{{ optional($p->highestBidder)->email_address }}<br>
-                                                <i class="fa fa-phone me-2"></i>{{ optional($p->highestBidder)->phone_number }}
+                                                <i class="fa fa-envelope me-2"></i>{{ optional(optional($p->highestBidder)->customer)->email_address }}<br>
+                                                <i class="fa fa-phone me-2"></i>{{ optional(optional($p->highestBidder)->customer)->phone_number }}
                                             </div>
                                         </div>
                                         <div class="d-flex flex-wrap gap-2 mt-3">
@@ -191,6 +193,44 @@
         function rejectPayment(id) {
             window.location.href = "/manager/auction-reject-payment/" + id;
         }
+
+        // Frontend validation for filter inputs
+        document.getElementById('filterForm').addEventListener('submit', function(e) {
+            const minPrice = document.getElementById('min_price').value;
+            const maxPrice = document.getElementById('max_price').value;
+            const minYear = document.getElementById('min_year').value;
+            const maxYear = document.getElementById('max_year').value;
+            const currentYear = {{ $currentSystemYear }};
+
+            // 1. Check for negative prices
+            if ((minPrice !== "" && Number(minPrice) < 0) || (maxPrice !== "" && Number(maxPrice) < 0)) {
+                e.preventDefault();
+                alert("Warning: Price values cannot be negative!");
+                return false;
+            }
+
+            // 2. Check if Max Price is less than Min Price
+            if (minPrice !== "" && maxPrice !== "" && Number(maxPrice) < Number(minPrice)) {
+                e.preventDefault();
+                alert(`Warning: Max Price must be greater than or equal to Min Price!`);
+                return false;
+            }
+
+            // 3. Check for valid years range
+            if ((minYear !== "" && (Number(minYear) < 1900 || Number(minYear) > currentYear)) || 
+                (maxYear !== "" && (Number(maxYear) < 1900 || Number(maxYear) > currentYear))) {
+                e.preventDefault();
+                alert(`Warning: Year must be between 1900 and ${currentYear}!`);
+                return false;
+            }
+
+            // 4. Check if Max Year is less than Min Year
+            if (minYear !== "" && maxYear !== "" && Number(maxYear) < Number(minYear)) {
+                e.preventDefault();
+                alert(`Warning: 'To' Year must be greater than or equal to 'From' Year!`);
+                return false;
+            }
+        });
     </script>
 </body>
 </html>

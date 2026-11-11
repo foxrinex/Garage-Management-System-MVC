@@ -22,7 +22,7 @@
                 <div class="page-header-icon"><i class="fa fa-pencil-square-o"></i></div>
                 <h2 class="page-header-title">Edit Vehicle</h2>
             </div>
-            <a href="#" class="btn btn-dark">
+            <a href="{{ route('manager.showroom') }}" class="btn btn-dark">
                 <i class="fa fa-chevron-left"></i> Back to Showroom
             </a>
         </div>

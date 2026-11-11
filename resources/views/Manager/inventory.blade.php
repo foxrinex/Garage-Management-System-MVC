@@ -48,7 +48,7 @@
                         <h5 class="mb-0"><i class="fa fa-cubes me-2"></i>Quick Stock Update</h5>
                     </div>
                     <div class="card-body">
-                        <form action="{{ route('manager.inventory.restock') }}" method="POST">
+                        <form action="{{ route('manager.product.restock') }}" method="POST">
                             @csrf
                             
                             <div class="mb-3">
@@ -89,7 +89,7 @@
                         <h5 class="mb-0"><i class="fa fa-plus-circle me-2"></i>Register New Part</h5>
                     </div>
                     <div class="card-body">
-                        <form action="{{ route('manager.inventory.store.part') }}" method="POST" enctype="multipart/form-data">
+                        <form action="{{ route('manager.product.store') }}" method="POST" enctype="multipart/form-data">
                             @csrf
                             
                             <div class="mb-3">
@@ -211,11 +211,11 @@
                                             </div>
                                         </span>
                                         <div class="btn-group">
-                                            <a href="{{ route('manager.builder.category.toggle', ['id' => $cat['id'], 'current' => $cat['is_mandatory']]) }}" 
+                                            <a href="{{ route('manager.category.toggle', ['id' => $cat['id'], 'current' => $cat['is_mandatory']]) }}" 
                                                class="btn btn-sm {{ $cat['is_mandatory'] ? 'btn-warning' : 'btn-outline-secondary' }}" title="Toggle Mandatory">
                                                 <i class="fa fa-anchor"></i>
                                             </a>
-                                            <a href="{{ route('manager.builder.category.delete', $cat['id']) }}" class="btn btn-sm btn-outline-danger" onclick="return confirm('Delete this category?')">
+                                            <a href="{{ route('manager.category.delete', $cat['id']) }}" class="btn btn-sm btn-outline-danger" onclick="return confirm('Delete this category?')">
                                                 <i class="fa fa-trash"></i>
                                             </a>
                                         </div>

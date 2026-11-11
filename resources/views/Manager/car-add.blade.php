@@ -22,7 +22,7 @@
                 <div class="page-header-icon"><i class="fa fa-car"></i></div>
                 <h2 class="page-header-title">Vehicle Management</h2>
             </div>
-            <a href="#" class="btn btn-dark">
+            <a href="{{ route('manager.showroom') }}" class="btn btn-dark">
                 <i class="fa fa-chevron-left"></i> Back to Showroom
             </a>
         </div>
@@ -144,6 +144,7 @@
                         <form action="{{ route('manager.category.store') }}" method="POST" id="catForm">
                             @csrf
                             <input type="hidden" name="category_id_edit" id="cat_id_edit">
+                            <input type="hidden" name="type" value="Car">
 
                             <div class="mb-3">
                                 <label class="form-label" id="catLabel">New Category Name</label>

@@ -3,10 +3,11 @@
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\CustomerController;
+use App\Http\Controllers\ManagerController;
 
 Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
 Route::post('/login', [AuthController::class, 'login'])->name('login.post');
-Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
+Route::match(['get', 'post'], '/logout', [AuthController::class, 'logout'])->name('logout');
 
 
 Route::get('/signup', [AuthController::class, 'showSignup'])->name('signup');
@@ -118,12 +119,12 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/manager/builder-settings', [ManagerController::class, 'handleBuilderSettingsPost'])->name('manager.builder.settings.post');
     Route::get('/manager/category-toggle/{id}', [ManagerController::class, 'toggleMandatoryCategory'])->name('manager.category.toggle');
     Route::get('/manager/category-delete/{id}', [ManagerController::class, 'deleteCategory'])->name('manager.category.delete');
-    Route::get('/manager/tag-delete/{id}', [ManagerController::class, 'deleteTag'])->name('manager.tag.delete');
+    Route::get('/manager/tag-delete/{id}', [ManagerController::class, 'deleteTag'])->name('manager.builder.tag.delete');
     //file end
 
     Route::post('/manager/car-add', [ManagerController::class, 'storeCar'])->name('manager.car.store');
     Route::get('/manager/car-delete/{id}', [ManagerController::class, 'deleteCar'])->name('manager.car.delete');
-    Route::post('/manager/car-edit/{id}', [ManagerController::class, 'updateCar'])->name('manager.car.update');
+    Route::put('/manager/car-edit/{id}', [ManagerController::class, 'updateCar'])->name('manager.car.update');
     Route::post('/manager/car-review-reply', [ManagerController::class, 'replyToCarReview'])->name('manager.car.review.reply');
     Route::post('/manager/category-add', [ManagerController::class, 'storeCategory'])->name('manager.category.store');
 
@@ -164,7 +165,7 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/manager/dashboard', [ManagerController::class, 'dashboardIndex'])->name('manager.dashboard');
     Route::get('/manager/inventory', [ManagerController::class, 'inventoryIndex'])->name('manager.inventory');
     Route::post('/manager/builder/settings', [ManagerController::class, 'handleBuilderSettingsPost'])->name('manager.builder.settings');
-    Route::get('/manager/inventory-view', [InventoryController::class, 'viewIndex'])->name('manager.inventory.view');
+    Route::get('/manager/inventory-view', [ManagerController::class, 'viewIndex'])->name('manager.inventory.view');
     Route::get('/manager/messages', [ManagerController::class, 'messages'])->name('manager.messages');
     Route::get('/manager/product-edit/{id}', [ManagerController::class, 'editProduct'])->name('manager.product.edit');
     Route::get('/manager/product-view/{id}', [ManagerController::class, 'viewProduct'])->name('manager.product.view');
@@ -183,6 +184,7 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/manager/warranties', [ManagerController::class, 'warrantyManageIndex'])->name('manager.warranties');
     Route::get('/manager/warranties/{id}/status/{status}', [ManagerController::class, 'updateWarrantyStatus'])->name('manager.warranties.status');
     Route::get('/manager/wishlist-analysis', [ManagerController::class, 'wishlistAnalysisIndex'])->name('manager.wishlist.analysis');
+    Route::post('/manager/messages/mark-read/{id}', [ManagerController::class, 'markAsRead'])->name('manager.messages.read');
 });
 
 

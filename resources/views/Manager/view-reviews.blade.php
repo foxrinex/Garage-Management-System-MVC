@@ -11,7 +11,7 @@
 
     <div class="container mt-5">
         <div class="mb-4">
-            <a href="#" class="btn btn-secondary btn-sm">
+            <a href="{{ route('manager.inventory.view') }}" class="btn btn-secondary btn-sm">
                 <i class="fa fa-arrow-left"></i> Back to Inventory
             </a>
             <h3 class="mt-3">Reviews for: <span class="text-primary">{{ $product->product_name }}</span></h3>

@@ -75,7 +75,7 @@
                                 </div>
 
                                 <div class="d-flex align-items-center justify-content-between">
-                                    <a href="{{ route('customer.support.send') }}" class="text-decoration-none text-muted"><i class="fa fa-chevron-left small"></i> Back</a>
+                                    <a href="{{ route('customer.dashboard') }}" class="text-decoration-none text-muted"><i class="fa fa-chevron-left small"></i> Back</a>
                                     <button type="submit" class="btn btn-send px-4 py-2 shadow-sm">
                                         Send Message <i class="fa fa-paper-plane ms-2"></i>
                                     </button>

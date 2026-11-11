@@ -30,4 +30,8 @@ class Car extends Model
     {
         return $this->hasMany(Wishlist::class, 'product_id');
     }
+    public function category()
+    {
+        return $this->belongsTo(Category::class, 'category_id');
+    }
 }

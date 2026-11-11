@@ -158,7 +158,7 @@
                             </a>
                         @endif
 
-                        <a href="#" class="btn btn-outline-dark btn-lg py-3 fw-bold">
+                        <a href="{{ route('manager.showroom') }}" class="btn btn-outline-dark btn-lg py-3 fw-bold">
                             <i class="fa fa-arrow-left me-2"></i> Back to Showroom
                         </a>
                     </div>

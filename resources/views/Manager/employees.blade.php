@@ -90,7 +90,7 @@
                 <div class="card shadow-sm">
                     <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
                         <h5 class="mb-0 text-dark"><i class="fa fa-id-badge me-2 text-primary"></i>Employee Roster</h5>
-                        <span class="badge bg-dark text-white">{{ $staff->count() }} Total Employees</span>
+                        <span class="badge bg-dark text-white">{{ isset($staff) ? $staff->count() : 0 }} Total Employees</span>
                     </div>
                     <div class="table-responsive">
                         <table class="table table-hover align-middle mb-0">
@@ -103,7 +103,7 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                @forelse ($staff as $emp)
+                                @forelse ($staff ?? [] as $emp)
                                 <tr>
                                     <td>
                                         <div class="d-flex align-items-center">
@@ -136,7 +136,7 @@
                                         </form>
                                     </td>
                                     <td class="text-center">
-                                        <a href="{{ route('manager.employees.delete', $emp->uid) }}" 
+                                        <a href="{{ route('manager.employees.delete', $emp->employee_id) }}" 
                                            class="btn btn-sm btn-outline-danger"
                                            onclick="return confirm('Are you sure you want to remove this employee?')">
                                             <i class="fa fa-user-times"></i>

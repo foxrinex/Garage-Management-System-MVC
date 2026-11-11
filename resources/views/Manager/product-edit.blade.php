@@ -10,7 +10,7 @@
     @include('manager.inc.navbar')
 
     <div class="container mt-5 mb-5" style="max-width: 800px;">
-        <form action="{{ route('manager.product.update') }}" 
+        <form action="{{ route('manager.product.update', $product->id) }}" 
               method="POST" 
               enctype="multipart/form-data" 
               class="shadow p-4 bg-white rounded border-top border-primary border-4">
@@ -60,7 +60,14 @@
 
                     <div class="mb-3">
                         <label class="form-label fw-bold small">Horsepower (hp)</label>
-                        <input type="text" name="hp" class="form-control" value="{{ old('hp', $product->hp) }}">
+                        <input type="number" 
+                            name="hp" 
+                            class="form-control" 
+                            value="{{ old('hp', $product->hp) }}" 
+                            min="0" 
+                            step="1" 
+                            onkeypress="return event.charCode >= 48 && event.charCode <= 57" 
+                            placeholder="0">
                     </div>
 
                     <div class="mb-3">

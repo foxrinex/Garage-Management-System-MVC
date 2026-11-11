@@ -49,7 +49,7 @@
                     </div>
                     
                     <div class="card-footer bg-white text-end">
-                        <a href="#" class="btn btn-primary btn-sm">
+                        <a href="{{ route('manager.profile.edit') }}" class="btn btn-primary btn-sm">
                             <i class="fa fa-pencil-square-o"></i> Edit Profile & Password
                         </a>
                     </div>

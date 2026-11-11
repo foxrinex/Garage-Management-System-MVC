@@ -46,7 +46,7 @@
 <nav class="navbar navbar-expand-lg navbar-dark bg-dark shadow-sm py-3">
   <div class="container-fluid">
     <a class="navbar-brand" href="{{ route('manager.dashboard') }}">
-      <img src="{{ asset('logo.png') }}" width="40">
+      <img src="{{ asset('logo.png') }}" width="40" alt="Logo">
     </a>
     
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#managerNav">
@@ -68,14 +68,14 @@
           </a>
           <ul class="dropdown-menu shadow border-0" aria-labelledby="garageDrop">
             <li><h6 class="dropdown-header text-uppercase small">Inventory</h6></li>
-            <li><a class="dropdown-item" href="{{ route('manager.inventory.index') }}"><i class="fa fa-list-ul me-2 text-muted"></i> Parts List</a></li>
-            <li><a class="dropdown-item" href="{{ route('manager.inventory.create') }}"><i class="fa fa-plus-square me-2 text-muted"></i> Add/Restock Parts</a></li>
+            <li><a class="dropdown-item" href="{{ route('manager.inventory.view') }}"><i class="fa fa-list-ul me-2 text-muted"></i> Parts List</a></li>
+            <li><a class="dropdown-item" href="{{ route('manager.inventory') }}"><i class="fa fa-plus-square me-2 text-muted"></i> Add/Restock Parts</a></li>
             <li><hr class="dropdown-divider"></li>
             <li><h6 class="dropdown-header text-uppercase small">Showroom</h6></li>
-            <li><a class="dropdown-item" href="{{ route('manager.showroom.manage') }}"><i class="fa fa-car me-2 text-muted"></i> Manage Vehicles</a></li>
+            <li><a class="dropdown-item" href="{{ route('manager.showroom') }}"><i class="fa fa-car me-2 text-muted"></i> Manage Vehicles</a></li>
             <li><hr class="dropdown-divider"></li>
             <li><h6 class="dropdown-header text-uppercase small">Services</h6></li>
-            <li><a class="dropdown-item" href="{{ route('manager.repair.house') }}"><i class="fa fa-cogs me-2 text-muted"></i> Repair House</a></li>
+            <li><a class="dropdown-item" href="{{ route('manager.repair-house') }}"><i class="fa fa-cogs me-2 text-muted"></i> Repair House</a></li>
           </ul>
         </li>
 
@@ -85,21 +85,21 @@
           </a>
           <ul class="dropdown-menu shadow border-0" aria-labelledby="auctionDrop">
             <li><h6 class="dropdown-header text-uppercase small">Bidding</h6></li>
-            <li><a class="dropdown-item" href="{{ route('manager.auctions.index') }}"><i class="fa fa-clock-o me-2 text-muted"></i> Live Auctions</a></li>
+            <li><a class="dropdown-item" href="{{ route('manager.auction.dashboard') }}"><i class="fa fa-clock-o me-2 text-muted"></i> Live Auctions</a></li>
             <li><hr class="dropdown-divider"></li>
             <li><h6 class="dropdown-header text-uppercase small">Reports</h6></li>
-            <li><a class="dropdown-item" href="{{ route('manager.auctions.sales') }}"><i class="fa fa-money me-2 text-muted"></i> Auction Sales</a></li>
+            <li><a class="dropdown-item" href="{{ route('manager.auction.sales') }}"><i class="fa fa-money me-2 text-muted"></i> Auction Sales</a></li>
           </ul>
         </li>
 
         <li class="nav-item">
-          <a class="nav-link" href="{{ route('manager.sales.history') }}">
+          <a class="nav-link" href="{{ route('manager.sales-history') }}">
             <i class="fa fa-usd me-1"></i> Sales
           </a>
         </li>
 
         <li class="nav-item">
-          <a class="nav-link" href="{{ route('manager.warranties.index') }}">
+          <a class="nav-link" href="{{ route('manager.warranties') }}">
             <i class="fa fa-shield me-1"></i> Warranties
           </a>
         </li>
@@ -111,7 +111,7 @@
         </li>
 
         <li class="nav-item">
-          <a class="nav-link" href="{{ route('manager.inquiries.index') }}">
+          <a class="nav-link" href="{{ route('manager.messages') }}">
             <i class="fa fa-envelope-o me-1"></i> Inquiries
             @if (isset($unread_count) && $unread_count > 0)
                 <span class="badge rounded-pill bg-danger" style="font-size: 0.7rem;">
@@ -138,7 +138,14 @@
             <li><a class="dropdown-item" href="{{ route('manager.profile') }}"><i class="fa fa-user me-2"></i> My Profile</a></li>
             <li><a class="dropdown-item" href="{{ route('manager.settings') }}"><i class="fa fa-university me-2"></i> Garage Settings</a></li>
             <li><hr class="dropdown-divider"></li>
-            <li><a class="dropdown-item text-danger" href="{{ url('/logout') }}"><i class="fa fa-sign-out me-2"></i> Logout</a></li>
+            <li>
+                <a class="dropdown-item text-danger" href="#" onclick="event.preventDefault(); document.getElementById('navbar-logout-form').submit();">
+                    <i class="fa fa-sign-out me-2"></i> Logout
+                </a>
+                <form id="navbar-logout-form" action="{{ url('/logout') }}" method="POST" class="d-none">
+                    @csrf
+                </form>
+            </li>
           </ul>
         </li>
       </ul>

@@ -22,6 +22,8 @@ use App\Models\Manager;
 use App\Models\CarRepair;
 use App\Models\RepairPartsSelected;
 use App\Models\WarrantyClaim;
+use Illuminate\Support\Facades\Auth;
+use App\Models\Order;
 
 
 
@@ -44,11 +46,11 @@ class ManagerController extends Controller
 
         // 2. Validation
         if ($reservePrice < $startPrice) {
-            return redirect()->route('auction.add.form')->with('error', 'Reserve price cannot be lower than the starting bid');
+            return redirect()->route('manager.auction.create')->with('error', 'Reserve price cannot be lower than the starting bid');
         }
 
         if (empty($minIncrement) || $minIncrement <= 0) {
-            return redirect()->route('auction.add.form')->with('error', 'Minimum increment must be greater than 0');
+            return redirect()->route('manager.auction.create')->with('error', 'Minimum increment must be greater than 0');
         }
 
         // 3. Time Validation
@@ -56,7 +58,7 @@ class ManagerController extends Controller
         $selectedTime = Carbon::parse($endTime);
 
         if ($selectedTime <= $currentTime) {
-            return redirect()->route('auction.add.form')->with('error', 'Auction end time must be in the future');
+            return redirect()->route('manager.auction.create')->with('error', 'Auction end time must be in the future');
         }
 
         try {
@@ -67,7 +69,7 @@ class ManagerController extends Controller
                 if ($request->filled('brand')) {
                     // Manual entry: New Registration
                     if (!$request->hasFile('car_image') || $request->file('car_image')->getError() !== 0) {
-                        return redirect()->route('auction.add.form')->with('error', 'Vehicle image is required for new registration');
+                        return redirect()->route('manager.auction.create')->with('error', 'Vehicle image is required for new registration');
                     }
 
                     $file = $request->file('car_image');
@@ -75,7 +77,7 @@ class ManagerController extends Controller
                     $allowedExs = ["jpg", "jpeg", "png"];
 
                     if (!in_array($imgExLc, $allowedExs)) {
-                        return redirect()->route('auction.add.form')->with('error', 'Invalid image format');
+                        return redirect()->route('manager.auction.create')->with('error', 'Invalid image format');
                     }
 
                     $newImgName = "AUC-" . uniqid() . "." . $imgExLc;
@@ -110,6 +112,7 @@ class ManagerController extends Controller
                     $car = Car::where('id', $carId)->lockForUpdate()->first();
 
                     if ($car && $car->quantity > 0) {
+                        // FIXED: Corrected quantity subtraction syntax
                         $newQty = $car->quantity - 1;
                         $newStatus = ($newQty <= 0) ? 'Out of Stock' : 'In Stock';
 
@@ -119,10 +122,10 @@ class ManagerController extends Controller
                             'in_auction' => 1,
                         ]);
                     } else {
-                        return redirect()->route('auction.add.form')->with('error', 'Car is out of stock');
+                        return redirect()->route('manager.auction.create')->with('error', 'Car is out of stock');
                     }
                 } else {
-                    return redirect()->route('auction.add.form')->with('error', 'Please provide car details or select from inventory');
+                    return redirect()->route('manager.auction.create')->with('error', 'Please provide car details or select from inventory');
                 }
 
                 // 5. Create the Auction
@@ -133,22 +136,24 @@ class ManagerController extends Controller
                         'current_bid' => $startPrice,
                         'reserve_price' => $reservePrice,
                         'min_increment' => $minIncrement,
+                        'start_time' => Carbon::now(),
                         'end_time' => $selectedTime,
                         'status' => 'Active',
                     ]);
 
                     if ($auction) {
-                        return redirect()->route('auction.dashboard')->with('success', 'Auction successfully launched!');
+                        // FIXED: Corrected route name to match manager prefix
+                        return redirect()->route('manager.auction.dashboard')->with('success', 'Auction successfully launched!');
                     } else {
-                        return redirect()->route('auction.add.form')->with('error', 'Failed to initialize auction record');
+                        return redirect()->route('manager.auction.create')->with('error', 'Failed to initialize auction record');
                     }
                 }
 
-                return redirect()->route('auction.add.form')->with('error', 'Invalid car reference');
+                return redirect()->route('manager.auction.create')->with('error', 'Invalid car reference');
             });
 
         } catch (\Exception $e) {
-            return redirect()->route('auction.add.form')->with('error', 'An error occurred while launching the auction.');
+            return redirect()->route('manager.auction.create')->with('error', 'An error occurred while launching the auction.');
         }
     }
 
@@ -230,20 +235,25 @@ class ManagerController extends Controller
                 $auction = Auction::where('id', $id)->lockForUpdate()->first();
 
                 if (!$auction) {
-                    return redirect()->route('auction.dashboard')->with('error', 'Not found');
+                    return redirect()->route('manager.auction.dashboard')->with('error', 'Not found');
                 }
 
                 $carId = $auction->car_id;
 
-                // 2. Restore the car to the showroom (increment quantity, set status to In Stock, in_auction to 0)
+                // 2. Fetch the associated car
                 $car = Car::where('id', $carId)->lockForUpdate()->first();
 
                 if ($car) {
-                    $car->update([
-                        'quantity' => $car->quantity + 1,
-                        'status' => 'In Stock',
-                        'in_auction' => 0,
-                    ]);
+                    // Delete the image file from public/uploads if it exists
+                    if (!empty($car->image)) {
+                        $imagePath = public_path('uploads/' . $car->image);
+                        if (File::exists($imagePath)) {
+                            File::delete($imagePath);
+                        }
+                    }
+
+                    // Delete the car record entirely since the auction is terminated
+                    $car->delete();
                 }
 
                 // 3. Delete the Auction record
@@ -251,14 +261,14 @@ class ManagerController extends Controller
 
                 // 4. Redirect immediately
                 if ($deleted) {
-                    return redirect()->route('auction.dashboard')->with('success', 'Auction removed');
+                    return redirect()->route('manager.auction.dashboard')->with('success', 'Auction and its image were successfully removed.');
                 } else {
-                    return redirect()->route('auction.dashboard')->with('error', 'Delete failed');
+                    return redirect()->route('manager.auction.dashboard')->with('error', 'Delete failed');
                 }
             });
 
         } catch (\Exception $e) {
-            return redirect()->route('auction.dashboard')->with('error', 'An error occurred while deleting the auction.');
+            return redirect()->route('manager.auction.dashboard')->with('error', 'An error occurred while deleting the auction.');
         }
     }
 
@@ -278,7 +288,7 @@ class ManagerController extends Controller
                 $auction = Auction::where('id', $id)->lockForUpdate()->first();
 
                 if (!$auction) {
-                    return redirect()->route('auction.dashboard')->with('error', 'Auction not found.');
+                    return redirect()->route('manager.auction.dashboard')->with('error', 'Auction not found.');
                 }
 
                 $carId = $auction->car_id;
@@ -302,7 +312,7 @@ class ManagerController extends Controller
                         'status' => 'Failed',
                     ]);
 
-                    return redirect()->route('auction.dashboard')->with('info', 'Auction failed. No bidders found.');
+                    return redirect()->route('manager.auction.dashboard')->with('info', 'Auction failed. No bidders found.');
                 } else {
                     // SCENARIO: Winner exists
                     // Set status to Closed. winner_paid remains 0 until they pay.
@@ -311,15 +321,15 @@ class ManagerController extends Controller
                     ]);
 
                     if ($updated) {
-                        return redirect()->route('auction.dashboard')->with('success', 'Auction settled. Winner is waiting for payment.');
+                        return redirect()->route('manager.auction.dashboard')->with('success', 'Auction settled. Winner is waiting for payment.');
                     } else {
-                        return redirect()->route('auction.dashboard')->with('error', 'Failed to settle auction.');
+                        return redirect()->route('manager.auction.dashboard')->with('error', 'Failed to settle auction.');
                     }
                 }
             });
 
         } catch (\Exception $e) {
-            return redirect()->route('auction.dashboard')->with('error', 'An error occurred while ending the auction.');
+            return redirect()->route('manager.auction.dashboard')->with('error', 'An error occurred while ending the auction.');
         }
     }
 
@@ -391,11 +401,11 @@ class ManagerController extends Controller
             // Check for duplicate category name
             $existingCategory = Category::where('category_name', $name)->where('type', 'Part')->first();
             if ($existingCategory) {
-                return redirect()->route('inventory.index')->with('error', 'Category name already exists!');
+                return redirect()->route('manager.inventory')->with('error', 'Category name already exists!');
             }
 
             if (empty($name)) {
-                return redirect()->route('inventory.index')->with('error', 'Category name is required.');
+                return redirect()->route('manager.inventory')->with('error', 'Category name is required.');
             }
 
             if ($request->hasFile('category_img')) {
@@ -412,12 +422,12 @@ class ManagerController extends Controller
                         'category_img' => $newImgName,
                     ]);
 
-                    return redirect()->route('inventory.index')->with('success', 'Category created!');
+                    return redirect()->route('manager.inventory')->with('success', 'Category created!');
                 } else {
-                    return redirect()->route('inventory.index')->with('error', 'Failed to move uploaded file.');
+                    return redirect()->route('manager.inventory')->with('error', 'Failed to move uploaded file.');
                 }
             } else {
-                return redirect()->route('inventory.index')->with('error', 'Default category image is required.');
+                return redirect()->route('manager.inventory')->with('error', 'Default category image is required.');
             }
         }
 
@@ -427,21 +437,21 @@ class ManagerController extends Controller
             $newName = $request->input('new_name');
 
             if (empty($newName)) {
-                return redirect()->route('inventory.index')->with('error', 'New name cannot be empty.');
+                return redirect()->route('manager.inventory')->with('error', 'New name cannot be empty.');
             }
 
             $duplicate = Category::where('category_name', $newName)->where('id', '!=', $cId)->where('type', 'Part')->first();
             if ($duplicate) {
-                return redirect()->route('inventory.index')->with('error', 'This category name is already in use.');
+                return redirect()->route('manager.inventory')->with('error', 'This category name is already in use.');
             }
 
             $category = Category::find($cId);
             if ($category) {
                 $category->update(['category_name' => $newName]);
-                return redirect()->route('inventory.index')->with('success', 'Category updated!');
+                return redirect()->route('manager.inventory')->with('success', 'Category updated!');
             }
 
-            return redirect()->route('inventory.index');
+            return redirect()->route('manager.inventory');
         }
 
         // 2.5 Edit Category Image
@@ -464,12 +474,12 @@ class ManagerController extends Controller
                         }
 
                         $category->update(['category_img' => $newImgName]);
-                        return redirect()->route('inventory.index')->with('success', 'Category image updated!');
+                        return redirect()->route('manager.inventory')->with('success', 'Category image updated!');
                     }
                 }
             }
 
-            return redirect()->route('inventory.index')->with('error', 'Please select a valid image.');
+            return redirect()->route('manager.inventory')->with('error', 'Please select a valid image.');
         }
 
         // 3. Add Compatibility Tag
@@ -477,14 +487,14 @@ class ManagerController extends Controller
             $tagName = $request->input('tag_name');
 
             if (empty($tagName)) {
-                return redirect()->route('inventory.index')->with('error', 'Tag name is required.');
+                return redirect()->route('manager.inventory')->with('error', 'Tag name is required.');
             }
 
             try {
                 Tag::create(['tag_name' => $tagName]);
-                return redirect()->route('inventory.index')->with('success', 'Tag added!');
+                return redirect()->route('manager.inventory')->with('success', 'Tag added!');
             } catch (\Exception $e) {
-                return redirect()->route('inventory.index')->with('error', 'Tag already exists or error occurred.');
+                return redirect()->route('manager.inventory')->with('error', 'Tag already exists or error occurred.');
             }
         }
 
@@ -494,21 +504,21 @@ class ManagerController extends Controller
             $newTagName = $request->input('new_tag_name');
 
             if (empty($newTagName)) {
-                return redirect()->route('inventory.index')->with('error', 'Tag name cannot be empty.');
+                return redirect()->route('manager.inventory')->with('error', 'Tag name cannot be empty.');
             }
 
             try {
                 $tag = Tag::find($tagId);
                 if ($tag) {
                     $tag->update(['tag_name' => $newTagName]);
-                    return redirect()->route('inventory.index')->with('success', 'Tag updated!');
+                    return redirect()->route('manager.inventory')->with('success', 'Tag updated!');
                 }
             } catch (\Exception $e) {
-                return redirect()->route('inventory.index')->with('error', 'Tag name already exists or error occurred.');
+                return redirect()->route('manager.inventory')->with('error', 'Tag name already exists or error occurred.');
             }
         }
 
-        return redirect()->route('inventory.index');
+        return redirect()->route('manager.inventory');
     }
 
     public function toggleMandatoryCategory(Request $request, $id)
@@ -528,7 +538,7 @@ class ManagerController extends Controller
             $category->update(['is_mandatory' => $newStatus]);
         }
 
-        return redirect()->route('inventory.index')->with('success', 'Category requirement updated!');
+        return redirect()->route('manager.inventory')->with('success', 'Category requirement updated!');
     }
 
     public function deleteCategory($id)
@@ -542,13 +552,29 @@ class ManagerController extends Controller
 
         try {
             return DB::transaction(function () use ($id) {
-                Product::where('category_id', $id)->update(['category_id' => 0]);
-                Category::where('id', $id)->delete();
+                // Find the category first so we can access its image filename
+                $category = Category::findOrFail($id);
 
-                return redirect()->route('inventory.index')->with('success', 'Category deleted!');
+                // Handle orphan products or cars if necessary
+                Product::where('category_id', $id)->update(['category_id' => 0]);
+                // If you have cars tied to categories too, handle them here if needed:
+                // Car::where('category_id', $id)->update(['category_id' => 0]);
+
+                // Delete the image file from public/uploads if it exists and isn't a default image
+                if ($category->category_img) {
+                    $imagePath = public_path('uploads/' . $category->category_img);
+                    if (\File::exists($imagePath) && $category->category_img !== 'default-cat.png') {
+                        \File::delete($imagePath);
+                    }
+                }
+
+                // Delete the category record
+                $category->delete();
+
+                return back()->with('success', 'Category and its image deleted successfully!');
             });
         } catch (\Exception $e) {
-            return redirect()->route('inventory.index')->with('error', 'Failed to delete category.');
+            return back()->with('error', 'Failed to delete category.');
         }
     }
 
@@ -563,7 +589,7 @@ class ManagerController extends Controller
 
         Tag::where('id', $id)->delete();
 
-        return redirect()->route('inventory.index')->with('success', 'Tag removed!');
+        return redirect()->route('manager.inventory')->with('success', 'Tag removed!');
     }
 
     public function storeCar(Request $request)
@@ -640,21 +666,21 @@ class ManagerController extends Controller
                         ]);
 
                         if ($car) {
-                            return redirect()->route('car.add.form')->with('success', 'New vehicle added successfully!');
+                            return redirect()->route('manager.car.add')->with('success', 'New vehicle added successfully!');
                         } else {
-                            return redirect()->route('car.add.form')->with('error', 'An error occurred during database saving.');
+                            return redirect()->route('manager.car.add')->with('error', 'An error occurred during database saving.');
                         }
-                    } else {
-                        return redirect()->route('car.add.form')->with('error', 'Failed to move file to root/uploads folder. Check permissions.');
-                    }
+                        } else {
+                            return redirect()->route('manager.car.add')->with('error', 'Failed to move file to root/uploads folder. Check permission');
+                        }
                 } else {
-                    return redirect()->route('car.add.form')->with('error', 'Incorrect file type. Use JPG, JPEG, or PNG.');
+                    return redirect()->route('manager.car.add')->with('error', 'Incorrect file type. Use JPG, JPEG, or PNG.');
                 }
             } else {
-                return redirect()->route('car.add.form')->with('error', 'Image upload error.');
+                return redirect()->route('manager.car.add')->with('error', 'Image upload error.');
             }
         } else {
-            return redirect()->route('car.add.form')->with('error', 'Image is required.');
+            return redirect()->route('manager.car.add')->with('error', 'Image is required.');
         }
     }
 
@@ -674,7 +700,7 @@ class ManagerController extends Controller
                 $car = Car::where('id', $id)->lockForUpdate()->first();
 
                 if (!$car) {
-                    return redirect()->route('showroom.manage');
+                    return redirect()->route('manager.showroom');
                 }
 
                 $imageName = $car->image;
@@ -690,15 +716,15 @@ class ManagerController extends Controller
 
                 if ($deleted) {
                     $sm = "Vehicle and associated image deleted successfully!";
-                    return redirect()->route('showroom.manage')->with('success', $sm);
+                    return redirect()->route('manager.showroom')->with('success', $sm);
                 } else {
                     $em = "Error occurred while deleting from database.";
-                    return redirect()->route('showroom.manage')->with('error', $em);
+                    return redirect()->route('manager.showroom')->with('error', $em);
                 }
             });
 
         } catch (\Exception $e) {
-            return redirect()->route('showroom.manage')->with('error', 'An error occurred while deleting the vehicle.');
+            return redirect()->route('manager.showroom')->with('error', 'An error occurred while deleting the vehicle.');
         }
     }
 
@@ -718,13 +744,13 @@ class ManagerController extends Controller
                 $activeAuction = Auction::where('car_id', $id)->where('status', 'Active')->lockForUpdate()->first();
 
                 if ($activeAuction) {
-                    return redirect()->route('car.edit.form', ['id' => $id])->with('error', 'This car is currently in an active auction and cannot be edited.');
+                    return redirect()->route('manager.car.edit', ['id' => $id])->with('error', 'This car is currently in an active auction and cannot be edited.');
                 }
 
                 $car = Car::where('id', $id)->lockForUpdate()->first();
 
                 if (!$car) {
-                    return redirect()->route('showroom.manage');
+                    return redirect()->route('manager.showroom');
                 }
 
                 $model = $request->input('model');
@@ -747,15 +773,15 @@ class ManagerController extends Controller
                 $maxVal = 1000000000;
 
                 if ($year < 1900 || $year > $currYear) {
-                    return redirect()->route('car.edit.form', ['id' => $id])->with('error', "Year must be between 1900 and $currYear");
+                    return redirect()->route('manager.car.edit', ['id' => $id])->with('error', "Year must be between 1900 and $currYear");
                 }
 
                 if ($price <= 0 || $price >= $maxVal) {
-                    return redirect()->route('car.edit.form', ['id' => $id])->with('error', 'Price must be between 1 and 999,999,999');
+                    return redirect()->route('manager.car.edit', ['id' => $id])->with('error', 'Price must be between 1 and 999,999,999');
                 }
 
                 if ($mileage <= 0 || $mileage >= $maxVal) {
-                    return redirect()->route('car.edit.form', ['id' => $id])->with('error', 'Mileage must be between 1 and 999,999,999');
+                    return redirect()->route('manager.car.edit', ['id' => $id])->with('error', 'Mileage must be between 1 and 999,999,999');
                 }
 
                 // --- 4. HANDLE WARRANTY CHECKBOXES ---
@@ -795,7 +821,7 @@ class ManagerController extends Controller
                         $file->move(public_path('uploads'), $newImgName);
                         $updateData['image'] = $newImgName;
                     } else {
-                        return redirect()->route('car.edit.form', ['id' => $id])->with('error', 'Invalid image format');
+                        return redirect()->route('manager.car.edit', ['id' => $id])->with('error', 'Invalid image format');
                     }
                 }
 
@@ -803,14 +829,14 @@ class ManagerController extends Controller
                 $updated = $car->update($updateData);
 
                 if ($updated) {
-                    return redirect()->route('showroom.manage')->with('success', 'Vehicle updated successfully');
+                    return redirect()->route('manager.showroom')->with('success', 'Vehicle updated successfully');
                 } else {
-                    return redirect()->route('car.edit.form', ['id' => $id])->with('error', 'Unknown error occurred');
+                    return redirect()->route('manager.car.edit', ['id' => $id])->with('error', 'Unknown error occurred');
                 }
             });
 
         } catch (\Exception $e) {
-            return redirect()->route('car.edit.form', ['id' => $id])->with('error', 'An error occurred while updating the vehicle.');
+            return redirect()->route('manager.car.edit', ['id' => $id])->with('error', 'An error occurred while updating the vehicle.');
         }
     }
 
@@ -825,7 +851,7 @@ class ManagerController extends Controller
         }
 
         if (!$request->has('review_id') || !$request->has('reply_text') || !$request->has('car_id')) {
-            return redirect()->route('showroom.manage');
+            return redirect()->route('manager.showroom');
         }
 
         $reviewId = $request->input('review_id');
@@ -868,28 +894,23 @@ class ManagerController extends Controller
         }
 
         if (!$request->has('category_name')) {
-            return redirect()->route('inventory.index');
+            return back();
         }
 
         $name = $request->input('category_name');
         $type = $request->input('type');
 
-        // Determine back_to redirect route or fallback to inventory index
-        $backRoute = 'inventory.index';
-        if ($request->filled('back_to')) {
-            // You can map your legacy relative paths or named routes as needed
-            $backRoute = $request->input('back_to');
-        }
-
         if (empty($name)) {
-            return redirect()->route($backRoute)->with('error', 'Category name is required');
+            return back()->with('error', 'Category name is required');
         }
 
         // Check if the category name already exists
-        $existingCategory = Category::where('category_name', $name)->first();
+        $existingCategory = Category::where('category_name', $name)
+                            ->where('type', $type)
+                            ->first();
 
         if ($existingCategory) {
-            return redirect()->route($backRoute)->with('error', "The category '$name' already exists!");
+            return back()->with('error', "The category '$name' already exists!");
         }
 
         // Proceed with the insertion
@@ -899,9 +920,9 @@ class ManagerController extends Controller
         ]);
 
         if ($category) {
-            return redirect()->route($backRoute)->with('success', 'New category created!');
+            return back()->with('success', 'New category created!');
         } else {
-            return redirect()->route($backRoute)->with('error', 'Unknown error occurred');
+            return back()->with('error', 'Unknown error occurred');
         }
     }
 
@@ -923,7 +944,7 @@ class ManagerController extends Controller
 
         // Constraint: Salary cannot be below 0
         if ($sal < 0) {
-            return redirect()->route('employees.index')->with('error', 'Salary cannot be a negative value');
+            return redirect()->route('manager.employees.index')->with('error', 'Salary cannot be a negative value');
         }
 
         try {
@@ -932,7 +953,7 @@ class ManagerController extends Controller
                 $existingUser = User::where('username', $uname)->lockForUpdate()->first();
 
                 if ($existingUser) {
-                    return redirect()->route('employees.index')->with('error', 'Username already exists');
+                    return redirect()->route('manager.employees.index')->with('error', 'Username already exists');
                 }
 
                 // Set the starting password as the literal string 'default'
@@ -955,10 +976,10 @@ class ManagerController extends Controller
                     'salary' => $sal,
                 ]);
 
-                return redirect()->route('employees.index')->with('success', 'Registered successfully');
+                return redirect()->route('manager.employees.index')->with('success', 'Registered successfully');
             });
         } catch (\Exception $e) {
-            return redirect()->route('employees.index')->with('error', 'An error occurred during registration.');
+            return redirect()->route('manager.employees.index')->with('error', 'An error occurred during registration.');
         }
     }
 
@@ -975,16 +996,16 @@ class ManagerController extends Controller
         $empId = $request->input('emp_id');
 
         if ($newSal < 0) {
-            return redirect()->route('employees.index')->with('error', 'Update failed: Salary cannot be below 0');
+            return redirect()->route('manager.employees.index')->with('error', 'Update failed: Salary cannot be below 0');
         }
 
         $employee = Employee::where('employee_id', $empId)->first();
         if ($employee) {
             $employee->update(['salary' => $newSal]);
-            return redirect()->route('employees.index')->with('success', 'Salary updated');
+            return redirect()->route('manager.employees.index')->with('success', 'Salary updated');
         }
 
-        return redirect()->route('employees.index')->with('error', 'Employee not found');
+        return redirect()->route('manager.employees.index')->with('error', 'Employee not found');
     }
 
     public function updateEmployeeInfo(Request $request)
@@ -1008,34 +1029,53 @@ class ManagerController extends Controller
                 'lname' => $lname,
                 'email_address' => $email,
             ]);
-            return redirect()->route('employees.index')->with('success', 'Info updated');
+            return redirect()->route('manager.employees.index')->with('success', 'Info updated');
         }
 
-        return redirect()->route('employees.index')->with('error', 'Employee not found');
+        return redirect()->route('manager.employees.index')->with('error', 'Employee not found');
     }
 
     public function deleteEmployee($deleteId)
     {
-        $userId = session('user_id');
         $role = session('role');
 
-        if (!$userId || $role !== 'Manager') {
+        if (!session('user_id') || $role !== 'Manager') {
             return redirect()->route('login');
         }
 
         try {
             return DB::transaction(function () use ($deleteId) {
-                // Delete user record (cascades or deletes associated employee record based on DB setup)
-                $user = User::where('uid', $deleteId)->lockForUpdate()->first();
-                if ($user) {
-                    $user->delete();
-                    return redirect()->route('employees.index')->with('success', 'Employee deleted');
+                $managerUserId = session('user_id');
+
+                // 1. Find the employee record using employee_id
+                $employee = Employee::where('employee_id', $deleteId)->first();
+
+                if (!$employee) {
+                    return redirect()->route('manager.employees.index')->with('error', 'Employee record not found.');
                 }
 
-                return redirect()->route('employees.index')->with('error', 'Employee user not found');
+                // 2. Prevent self-deletion by checking the session user ID directly
+                if ($employee->user_id == $managerUserId) {
+                    return redirect()->route('manager.employees.index')->with('error', 'You cannot delete your own manager account.');
+                }
+
+                $associatedUserId = $employee->user_id;
+
+                // 3. Delete the employee record FIRST (child table)
+                $employee->delete();
+
+                // 4. Then delete the associated user login record (parent table)
+                if ($associatedUserId) {
+                    $user = User::where('uid', $associatedUserId)->first();
+                    if ($user) {
+                        $user->delete();
+                    }
+                }
+
+                return redirect()->route('manager.employees.index')->with('success', 'Employee deleted successfully.');
             });
         } catch (\Exception $e) {
-            return redirect()->route('employees.index')->with('error', 'An error occurred while deleting the employee.');
+            return redirect()->route('manager.employees.index')->with('error', 'Error: ' . $e->getMessage());
         }
     }
 
@@ -1050,7 +1090,7 @@ class ManagerController extends Controller
         }
 
         if (!$request->has('message_id')) {
-            return redirect()->route('messages.index');
+            return redirect()->route('manager.messages');
         }
 
         $messageId = $request->input('message_id');
@@ -1064,15 +1104,15 @@ class ManagerController extends Controller
                     $deleted = $message->delete();
 
                     if ($deleted) {
-                        return redirect()->route('messages.index')->with('success', 'Message deleted successfully!');
+                        return redirect()->route('manager.messages')->with('success', 'Message deleted successfully!');
                     }
                 }
 
-                return redirect()->route('messages.index')->with('error', 'An error occurred while deleting.');
+                return redirect()->route('manager.messages')->with('error', 'An error occurred while deleting.');
             });
 
         } catch (\Exception $e) {
-            return redirect()->route('messages.index')->with('error', 'An error occurred while deleting the message.');
+            return redirect()->route('manager.messages')->with('error', 'An error occurred while deleting the message.');
         }
     }
 
@@ -1090,7 +1130,7 @@ class ManagerController extends Controller
         $type = $request->input('type');
 
         if (empty($pId) || empty($qty)) {
-            return redirect()->route('inventory.index')->with('error', 'Select product and quantity');
+            return redirect()->route('manager.inventory.view')->with('error', 'Select product and quantity');
         }
 
         try {
@@ -1098,14 +1138,14 @@ class ManagerController extends Controller
                 $product = Product::where('id', $pId)->lockForUpdate()->first();
 
                 if (!$product) {
-                    return redirect()->route('inventory.index')->with('error', 'Product not found');
+                    return redirect()->route('manager.inventory.view')->with('error', 'Product not found');
                 }
 
                 if ($type === 'subtract') {
                     $currentStock = $product->quantity;
 
                     if ($qty > $currentStock) {
-                        return redirect()->route('inventory.index')->with('error', "Cannot remove $qty items. Only $currentStock available.");
+                        return redirect()->route('manager.inventory.view')->with('error', "Cannot remove $qty items. Only $currentStock available.");
                     }
 
                     $newQty = $currentStock - $qty;
@@ -1126,10 +1166,10 @@ class ManagerController extends Controller
                     $msg = 'Stock added and status updated to In Stock!';
                 }
 
-                return redirect()->route('inventory.index')->with('success', $msg);
+                return redirect()->route('manager.inventory.view')->with('success', $msg);
             });
         } catch (\Exception $e) {
-            return redirect()->route('inventory.index')->with('error', 'An error occurred during stock adjustment.');
+            return redirect()->route('manager.inventory.view')->with('error', 'An error occurred during stock adjustment.');
         }
     }
 
@@ -1151,7 +1191,7 @@ class ManagerController extends Controller
         $status = 'In Stock';
 
         if (empty($pName) || empty($price) || empty($categoryId)) {
-            return redirect()->route('inventory.index')->with('error', 'Name, Price, and Category are required');
+            return redirect()->route('manager.inventory.view')->with('error', 'Name, Price, and Category are required');
         }
 
         // Handle Tags using a full for loop matching your standard
@@ -1181,7 +1221,7 @@ class ManagerController extends Controller
             if ($file->move(public_path('uploads'), $newImgName)) {
                 $finalImgName = $newImgName;
             } else {
-                return redirect()->route('inventory.index')->with('error', 'Failed to move uploaded file');
+                return redirect()->route('manager.inventory.view')->with('error', 'Failed to move uploaded file');
             }
         } else {
             $category = Category::find($categoryId);
@@ -1207,7 +1247,7 @@ class ManagerController extends Controller
             'hp' => $hp,
         ]);
 
-        return redirect()->route('inventory.index')->with('success', 'Product added successfully!');
+        return redirect()->route('manager.inventory.view')->with('success', 'Product added successfully!');
     }
 
     public function deleteProduct(Request $request, $id)
@@ -1226,7 +1266,7 @@ class ManagerController extends Controller
                 $product = Product::where('id', $id)->lockForUpdate()->first();
 
                 if (!$product) {
-                    return redirect()->route('inventory.view')->with('error', 'Product record not found.');
+                    return redirect()->route('manager.inventory.view')->with('error', 'Product record not found.');
                 }
 
                 $imageName = $product->image;
@@ -1244,7 +1284,7 @@ class ManagerController extends Controller
                 $deleted = $product->delete();
 
                 if ($deleted) {
-                    return redirect()->route('inventory.view')->with('success', 'Product deleted successfully');
+                    return redirect()->route('manager.inventory.view')->with('success', 'Product deleted successfully');
                 } else {
                     return redirect()->route('inventory.view')->with('error', 'Could not delete from database');
                 }
@@ -1349,14 +1389,14 @@ class ManagerController extends Controller
                 $updated = $product->update($updateData);
 
                 if ($updated) {
-                    return redirect()->route('inventory.view')->with('success', 'Product updated successfully');
+                    return redirect()->route('manager.inventory.view')->with('success', 'Product updated successfully');
                 } else {
-                    return redirect()->route('product.edit.form', ['id' => $id])->with('error', 'Unknown error occurred');
+                    return redirect()->route('manager.product.edit', ['id' => $id])->with('error', 'Unknown error occurred');
                 }
             });
 
         } catch (\Exception $e) {
-            return redirect()->route('product.edit.form', ['id' => $id])->with('error', 'An error occurred while updating the product.');
+            return redirect()->route('manager.product.edit', ['id' => $id])->with('error', 'An error occurred while updating the product.');
         }
     }
 
@@ -1371,7 +1411,7 @@ class ManagerController extends Controller
         }
 
         if (!$request->has('fname') || !$request->has('lname') || !$request->has('email_address') || !$request->has('old_password')) {
-            return redirect()->route('profile.edit.form');
+            return redirect()->back();
         }
 
         $fname = $request->input('fname');
@@ -1383,11 +1423,12 @@ class ManagerController extends Controller
         $cPass = $request->input('confirm_password');
 
         if (empty($fname) || empty($lname) || empty($email) || empty($oldPass)) {
-            return redirect()->route('profile.edit.form')->with('error', 'Required fields missing');
+            return redirect()->back()->with('error', 'Required fields missing');
         }
 
         try {
             return DB::transaction(function () use ($userId, $fname, $lname, $email, $phone, $oldPass, $newPass, $cPass) {
+                
                 // 1. Fetch current user from 'users' table using row locking
                 $user = User::where('uid', $userId)->lockForUpdate()->first();
 
@@ -1397,7 +1438,7 @@ class ManagerController extends Controller
 
                 // Verify the old password
                 if (!Hash::check($oldPass, $user->password)) {
-                    return redirect()->route('profile.edit.form')->with('error', 'Current password is incorrect');
+                    return redirect()->back()->with('error', 'Current password is incorrect');
                 }
 
                 // 2. Update Profile Info in 'manager' table
@@ -1414,7 +1455,7 @@ class ManagerController extends Controller
                     // 3. Update Password in 'users' table if a new one was provided
                     if (!empty($newPass)) {
                         if ($newPass !== $cPass) {
-                            return redirect()->route('profile.edit.form')->with('error', 'New passwords do not match');
+                            return redirect()->back()->with('error', 'New passwords do not match');
                         }
 
                         $hashedPass = Hash::make($newPass);
@@ -1424,17 +1465,17 @@ class ManagerController extends Controller
                     }
 
                     if ($resManager) {
-                        return redirect()->route('profile.edit.form')->with('success', 'Profile updated successfully!');
+                        return redirect()->back()->with('success', 'Profile updated successfully!');
                     } else {
-                        return redirect()->route('profile.edit.form')->with('error', 'An error occurred');
+                        return redirect()->back()->with('error', 'An error occurred');
                     }
                 } else {
-                    return redirect()->route('profile.edit.form')->with('error', 'Manager profile not found');
+                    return redirect()->back()->with('error', 'Manager profile not found');
                 }
             });
 
         } catch (\Exception $e) {
-            return redirect()->route('profile.edit.form')->with('error', 'An error occurred while updating the profile.');
+            return redirect()->back()->with('error', 'An error occurred while updating the profile.');
         }
     }
 
@@ -1601,7 +1642,7 @@ class ManagerController extends Controller
         }
 
         if (!$request->has('reply') || !$request->has('review_id') || !$request->has('product_id')) {
-            return redirect()->route('inventory.view');
+            return redirect()->route('manager.inventory.view');
         }
 
         $reply = $request->input('reply');
@@ -1644,7 +1685,7 @@ class ManagerController extends Controller
         }
 
         if (!$request->has('garage_name') || !$request->has('slogan') || !$request->has('about') || !$request->has('current_year')) {
-            return redirect()->route('settings.index')->with('error', 'An error occurred');
+            return redirect()->route('manager.settings')->with('error', 'An error occurred');
         }
 
         $garageName = $request->input('garage_name');
@@ -1654,13 +1695,13 @@ class ManagerController extends Controller
 
         // Validation - Checking if fields are empty
         if (empty($garageName)) {
-            return redirect()->route('settings.index')->with('error', 'Garage name is required');
+            return redirect()->route('manager.settings')->with('error', 'Garage name is required');
         } else if (empty($slogan)) {
-            return redirect()->route('settings.index')->with('error', 'Slogan is required');
+            return redirect()->route('manager.settings')->with('error', 'Slogan is required');
         } else if (empty($about)) {
-            return redirect()->route('settings.index')->with('error', 'About description is required');
+            return redirect()->route('manager.settings')->with('error', 'About description is required');
         } else if (empty($currentYear)) {
-            return redirect()->route('settings.index')->with('error', 'Current year is required');
+            return redirect()->route('manager.settings')->with('error', 'Current year is required');
         }
 
         try {
@@ -1676,14 +1717,14 @@ class ManagerController extends Controller
                         'current_year' => $currentYear,
                     ]);
 
-                    return redirect()->route('settings.index')->with('success', 'Settings updated successfully');
+                    return redirect()->route('manager.settings')->with('success', 'Settings updated successfully!');
                 } else {
-                    return redirect()->route('settings.index')->with('error', 'Settings record not found');
+                    return redirect()->route('manager.settings')->with('error', 'Settings record not found');
                 }
             });
 
         } catch (\Exception $e) {
-            return redirect()->route('settings.index')->with('error', 'An error occurred while updating settings');
+            return redirect()->route('manager.settings')->with('error', 'An error occurred while updating settings');
         }
     }
 
@@ -1880,27 +1921,40 @@ class ManagerController extends Controller
         $categories = Category::where('type', 'Car')->orderBy('category_name', 'ASC')->get();
         $transmissions = ["Automatic", "Manual", "CVT", "DCT", "AMT"];
 
-        // 2. Initialize Filter Variables
+        // 2. Initialize and Sanitize Filter Variables
         $searchName = $request->input('search_name', '');
         $brand = $request->input('brand', '');
         $model = $request->input('model', '');
         $catId = $request->input('cat_id', '');
-        $minPrice = $request->input('min_price', '');
-        $maxPrice = $request->input('max_price', '');
-        $minYear = $request->input('min_year', '');
-        $maxYear = $request->input('max_year', '');
+        
+        // Prevent negative values for prices
+        $minPrice = $request->input('min_price');
+        $minPrice = ($minPrice !== null && $minPrice !== '' && $minPrice >= 0) ? $minPrice : '';
+
+        $maxPrice = $request->input('max_price');
+        $maxPrice = ($maxPrice !== null && $maxPrice !== '' && $maxPrice >= 0) ? $maxPrice : '';
+
+        // Constrain years within valid bounds (1900 to current system year)
+        $minYear = $request->input('min_year');
+        $minYear = ($minYear !== null && $minYear !== '' && $minYear >= 1900) ? max(1900, (int)$minYear) : '';
+
+        $maxYear = $request->input('max_year');
+        $maxYear = ($maxYear !== null && $maxYear !== '' && $maxYear <= $currentSystemYear) ? min($currentSystemYear, (int)$maxYear) : '';
+
         $maxMileage = $request->input('max_mileage', '');
+        $maxMileage = ($maxMileage !== null && $maxMileage !== '' && $maxMileage >= 0) ? $maxMileage : '';
+        
         $transmission = $request->input('transmission', '');
 
         // 3. Build Filtered Query using Eloquent
-        $query = Auction::with(['car.category', 'highestBidder'])
+        $query = Auction::with(['car.category', 'highestBidder.customer'])
             ->where('status', 'Closed')
             ->where('winner_paid', 0);
 
         if (!empty($searchName)) {
-            $query->whereHas('highestBidder', function ($q) use ($searchName) {
+            $query->whereHas('highestBidder.customer', function ($q) use ($searchName) {
                 $q->where('fname', 'like', "%{$searchName}%")
-                  ->orWhere('lname', 'like', "%{$searchName}%");
+                ->orWhere('lname', 'like', "%{$searchName}%");
             });
         }
 
@@ -2015,7 +2069,7 @@ class ManagerController extends Controller
             'category_name' => $request->input('category_name')
         ]);
 
-        return redirect()->route('manager.car.add')->with('success', 'Category updated successfully');
+        return back()->with('success', 'Category updated successfully');
     }
 
     
@@ -2235,21 +2289,15 @@ public function restock(Request $request)
 
     public function messages(Request $request)
     {
-        // Mark all unread messages as read when visiting the inbox
-        Message::where('status', 'Unread')->update(['status' => 'Read']);
-
         $search = $request->input('search');
-
-        $query = Message::query();
-
-        if (!empty($search)) {
-            $query->where(function ($q) use ($search) {
-                $q->where('sender_full_name', 'LIKE', "%{$search}%")
-                  ->orWhere('sender_email', 'LIKE', "%{$search}%");
-            });
+        
+        $query = \App\Models\Message::query();
+        if ($search) {
+            $query->where('sender_full_name', 'like', "%{$search}%")
+                ->orWhere('sender_email', 'like', "%{$search}%");
         }
-
-        $messages = $query->orderBy('message_id', 'DESC')->get();
+        
+        $messages = $query->orderBy('date_time', 'desc')->get();
 
         return view('manager.message', compact('messages', 'search'));
     }
@@ -2287,7 +2335,14 @@ public function restock(Request $request)
 
     public function editProfile()
     {
-        $userId = Auth::id();
+        $userId = session('user_id');
+        $role = session('role');
+
+        if (!$userId || $role !== 'Manager') {
+            return redirect()->route('login');
+        }
+
+        // Fetch the manager record to populate the form
         $manager = Manager::where('user_id', $userId)->first();
 
         return view('manager.profile-edit', compact('manager'));
@@ -2371,14 +2426,30 @@ public function restock(Request $request)
             }
         }
 
+        // Map camelCase to snake_case for safety across all view variables
+        $all_repairs = $allRepairs;
+        $active_jobs_count = $activeJobsCount;
+        $pending_count = $pendingCount;
+        $ready_count = $readyCount;
+        $rejected_count = $rejectedCount;
+        $completed_count = $completedCount;
+        $total_revenue = $totalRevenue;
+
         return view('manager.repair-house', compact(
             'allRepairs', 
+            'all_repairs',
             'pendingCount', 
+            'pending_count',
             'activeJobsCount', 
+            'active_jobs_count', 
             'readyCount', 
+            'ready_count',
             'rejectedCount', 
+            'rejected_count',
             'completedCount', 
-            'totalRevenue'
+            'completed_count',
+            'totalRevenue',
+            'total_revenue'
         ));
     }
 
@@ -2402,25 +2473,25 @@ public function restock(Request $request)
 
         if (!empty($search)) {
             $query->where(function ($q) use ($search) {
-                $q->where('orders.product_name', 'LIKE', "%{$search}%")
-                ->orWhere('products.product_name', 'LIKE', "%{$search}%")
+                // Removed orders.product_name since the column does not exist on orders table
+                $q->where('products.product_name', 'LIKE', "%{$search}%")
                 ->orWhere('users.username', 'LIKE', "%{$search}%")
                 ->orWhere('cars.brand', 'LIKE', "%{$search}%")
                 ->orWhere('cars.model', 'LIKE', "%{$search}%");
             });
         }
 
-        $allOrders = $query->orderBy('orders.id', 'DESC')->get();
+        $all_orders = $query->orderBy('orders.id', 'DESC')->get();
 
-        $totalRevenue = 0;
-        $orderCount = $allOrders->count();
+        $total_revenue = 0;
+        $order_count = $all_orders->count();
 
         // Explicit for loop to calculate total revenue as requested
-        for ($i = 0; $i < $orderCount; $i = $i + 1) {
-            $totalRevenue = $totalRevenue + $allOrders[$i]->total_price;
+        for ($i = 0; $i < $order_count; $i = $i + 1) {
+            $total_revenue = $total_revenue + $all_orders[$i]->total_price;
         }
 
-        return view('manager.sales-history', compact('allOrders', 'totalRevenue', 'orderCount', 'search'));
+        return view('manager.sales-history', compact('all_orders', 'total_revenue', 'order_count', 'search'));
     }
 
 
@@ -2508,22 +2579,24 @@ public function restock(Request $request)
         $cars = $query->orderBy('c.id', 'DESC')->get();
 
         // 4. Logic to count statuses and total value
-        $countInStock = 0;
-        $countOutOfStock = 0;
-        $countUpcoming = 0;
-        $totalInventoryValue = 0;
+        $count_in_stock = 0;
+        $count_out_of_stock = 0;
+        $count_upcoming = 0;
+        $total_inventory_value = 0;
 
         $carCount = $cars->count();
-        for ($i = 0; $i < $carCount; $i = $i + 1) {
+
+        for ($i = 0; $i < $carCount; $i++) {
             $car = $cars[$i];
-            $totalInventoryValue = $totalInventoryValue + ($car->price * $car->quantity);
+
+            $total_inventory_value = $total_inventory_value + ($car->price * $car->quantity);
 
             if ($car->status == 'Upcoming') {
-                $countUpcoming++;
+                $count_upcoming++;
             } elseif ($car->quantity <= 0 || $car->status == 'Sold Out') {
-                $countOutOfStock++;
+                $count_out_of_stock++;
             } else {
-                $countInStock++;
+                $count_in_stock++;
             }
         }
 
@@ -2532,10 +2605,10 @@ public function restock(Request $request)
             'transmissions', 
             'cars', 
             'carCount', 
-            'countUpcoming', 
-            'countOutOfStock', 
-            'countInStock', 
-            'totalInventoryValue'
+            'count_upcoming', 
+            'count_out_of_stock', 
+            'count_in_stock', 
+            'total_inventory_value'
         ));
     }
 
@@ -2572,7 +2645,7 @@ public function restock(Request $request)
         $product = Product::find($id);
 
         if (!$product) {
-            return redirect()->route('manager.inventory.index')->with('error', 'Product not found.');
+            return redirect()->route('manager.inventory.view')->with('error', 'Product not found.');
         }
 
         // 2. Fetch all reviews for this product joining customer details
@@ -2677,5 +2750,45 @@ public function restock(Request $request)
             ->values();
 
         return view('manager.wishlist-all', compact('all_wishlisted'));
+    }
+
+    public function markAsRead($id)
+    {
+        $message = \App\Models\Message::where('message_id', $id)->first();
+        if ($message && $message->status == 'Unread') {
+            $message->status = 'Read';
+            $message->save();
+            return response()->json(['success' => true]);
+        }
+        return response()->json(['success' => false]);
+    }
+
+    public function employeesIndex(Request $request)
+    {
+        $search = $request->input('search', '');
+
+        // Query the employees table and join with users to get usernames if needed
+        $query = Employee::query()
+            ->leftJoin('users', 'employees.user_id', '=', 'users.uid')
+            ->select(
+                'employees.*',
+                'users.username'
+            );
+
+        if (!empty($search)) {
+            $query->where(function ($q) use ($search) {
+                $q->where('employees.fname', 'LIKE', "%{$search}%")
+                ->orWhere('employees.lname', 'LIKE', "%{$search}%")
+                ->orWhere('employees.email_address', 'LIKE', "%{$search}%")
+                ->orWhere('employees.phone_number', 'LIKE', "%{$search}%")
+                ->orWhere('users.username', 'LIKE', "%{$search}%");
+            });
+        }
+
+        // Changed from $employees to $staff to match the view
+        $staff = $query->orderBy('employees.employee_id', 'DESC')->get();
+        $employeeCount = $staff->count();
+
+        return view('manager.employees', compact('staff', 'employeeCount', 'search'));
     }
 }

@@ -51,13 +51,13 @@
                     <i class="fa fa-dashboard text-primary"></i> Manager Dashboard
                 </h1>
                 <p class="text-muted mb-0">Welcome back, {{ optional($manager)->fname }}. Monitor your inventory, auctions, and repairs.</p>
-                <a href="#" class="btn btn-sm btn-outline-primary mt-2 rounded-pill">Manage Profile</a>
+                <a href="{{ route('manager.profile') }}" class="btn btn-sm btn-outline-primary mt-2 rounded-pill">Manage Profile</a>
             </div>
         </div>
 
         <div class="row mb-4 text-center">
             <div class="col-md-3 mb-3">
-                <a href="#" class="stat-card-link">
+                <a href="{{ route('manager.inventory.view') }}" class="stat-card-link">
                     <div class="card shadow-sm border-0 bg-primary text-white p-3 h-100 d-flex flex-column justify-content-center">
                         <i class="fa fa-cubes icon-bg"></i>
                         <h5 class="text-uppercase small mb-1" style="letter-spacing: 1px;">Inventory</h5>
@@ -67,7 +67,7 @@
             </div>
             
             <div class="col-md-3 mb-3">
-                <a href="#" class="stat-card-link">
+                <a href="{{ route('manager.showroom') }}" class="stat-card-link">
                     <div class="card shadow-sm border-0 bg-info text-white p-3 h-100 d-flex flex-column justify-content-center">
                         <i class="fa fa-car icon-bg"></i>
                         <h5 class="text-uppercase small mb-1" style="letter-spacing: 1px;">Showroom</h5>
@@ -87,7 +87,7 @@
             </div>
             
             <div class="col-md-3 mb-3">
-                <a href="{{ route('manager.auction.sales') }}" class="stat-card-link">
+                <a href="{{ route('manager.sales-history') }}" class="stat-card-link">
                     <div class="card shadow-sm border-0 bg-success text-white p-3 h-100 d-flex flex-column justify-content-center">
                         <i class="fa fa-money icon-bg"></i>
                         <h5 class="text-uppercase small mb-1" style="letter-spacing: 1px;">Revenue</h5>
@@ -102,7 +102,7 @@
                 <div class="card shadow-sm border-0 mb-5">
                     <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
                         <h5 class="mb-0"><i class="fa fa-shopping-cart text-muted me-2"></i> Recent Orders</h5>
-                        <a href="{{ route('manager.auction.sales') }}" class="btn btn-sm btn-outline-secondary">View All</a>
+                        <a href="{{ route('manager.sales-history') }}" class="btn btn-sm btn-outline-secondary">View All</a>
                     </div>
                     <div class="card-body">
                         <div class="table-responsive">
@@ -162,7 +162,7 @@
                 <div class="card shadow-sm border-0 mb-5">
                     <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
                         <h5 class="mb-0"><i class="fa fa-wrench text-muted me-2"></i> Recent Repairs</h5>
-                        <a href="#" class="btn btn-sm btn-outline-secondary">View All</a>
+                        <a href="{{ route('manager.repair-house') }}" class="btn btn-sm btn-outline-secondary">View All</a>
                     </div>
                     <div class="card-body">
                         <div class="table-responsive">
@@ -218,16 +218,16 @@
                     </div>
                     <div class="card-body">
                         <div class="d-grid gap-3">
-                            <a href="#" class="btn btn-primary p-3 text-start">
+                            <a href="{{ route('manager.inventory') }}" class="btn btn-primary p-3 text-start">
                                 <i class="fa fa-plus-circle me-2"></i> Add New Parts
                             </a>
-                            <a href="#" class="btn btn-danger text-white p-3 text-start">
+                            <a href="{{ route('manager.messages') }}" class="btn btn-danger text-white p-3 text-start">
                                 <i class="fa fa-envelope me-2"></i> Inbox ({{ $unreadCount }})
                             </a>
-                            <a href="#" class="btn btn-success text-white p-3 text-start">
+                            <a href="{{ route('manager.repair-house') }}" class="btn btn-success text-white p-3 text-start">
                                 <i class="fa fa-university me-2"></i> Access Repair House
                             </a>
-                            <a href="#" class="btn btn-secondary text-white p-3 text-start">
+                            <a href="{{ route('manager.warranties') }}" class="btn btn-secondary text-white p-3 text-start">
                                 <i class="fa fa-shield me-2"></i> Review Warranties
                             </a>
                             <a href="{{ route('manager.employees.index') }}" class="btn btn-outline-dark p-3 text-start">
@@ -242,7 +242,7 @@
                         <i class="fa fa-cog fa-2x mb-2 text-warning"></i>
                         <h5>System Settings</h5>
                         <p class="small opacity-75">Configure garage settings.</p>
-                        <a href="#" class="btn btn-sm btn-warning">Edit Settings</a>
+                        <a href="{{ route('manager.settings') }}" class="btn btn-sm btn-warning">Edit Settings</a>
                     </div>
                 </div>
             </div>

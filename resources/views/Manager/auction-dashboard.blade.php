@@ -63,7 +63,7 @@
                 </a>
             </div>
             <div class="col-md-3">
-                <a href="#" style="text-decoration: none;">
+                <a href="{{ route('manager.auction.pending', ['status_filter' => 'Pending']) }}" style="text-decoration: none;">
                     <div class="card stats-card bg-warning text-dark shadow-sm">
                         <div class="card-body d-flex align-items-center">
                             <i class="fa fa-clock-o fa-2x me-3"></i>
@@ -209,7 +209,7 @@
                                             <i class="fa fa-trash fa-3x"></i>
                                         </div>
                                     @else
-                                        <a href="#">
+                                        <a href="{{ route('manager.showroom', $a->car->id) }}">
                                             <img src="{{ asset('uploads/' . $a->car->image) }}" class="car-img-top" onerror="this.src='https://via.placeholder.com/300x180?text=No+Image'">
                                         </a>
                                     @endif
@@ -227,7 +227,7 @@
                                         @if ($isCarDeleted)
                                             <h5 class="card-title fw-bold mb-2 text-muted">Stock Record Removed</h5>
                                         @else
-                                            <a href="#" class="clickable-card-link">
+                                            <a href="{{ route('manager.showroom', $a->car->id) }}" class="clickable-card-link">
                                                 <h5 class="card-title fw-bold mb-2">{{ $a->car->year . " " . $a->car->model }}</h5>
                                             </a>
                                         @endif

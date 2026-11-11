@@ -142,13 +142,13 @@
 
                             <td class="text-end pe-3">
                                 <div class="btn-group shadow-sm">
-                                    <a href="#" class="btn btn-white btn-sm border" title="Reviews">
+                                    <a href="{{ route('manager.inventory.reviews', $p->id) }}" class="btn btn-white btn-sm border" title="Reviews">
                                         <i class="fa fa-comments text-info"></i>
                                     </a>
-                                    <a href="#" class="btn btn-white btn-sm border" title="Edit">
+                                    <a href="{{ route('manager.product.edit', $p->id) }}" class="btn btn-white btn-sm border" title="Edit">
                                         <i class="fa fa-pencil text-warning"></i>
                                     </a>
-                                    <a href="#" class="btn btn-white btn-sm border" title="Delete" onclick="return confirm('Delete this part?')">
+                                    <a href="{{ route('manager.product.delete', $p->id) }}" class="btn btn-white btn-sm border" title="Delete" onclick="return confirm('Delete this part?')">
                                         <i class="fa fa-trash text-danger"></i>
                                     </a>
                                 </div>

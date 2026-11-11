@@ -15,4 +15,5 @@ class Category extends Model
         'is_mandatory',
         'category_img',
     ];
+    
 }

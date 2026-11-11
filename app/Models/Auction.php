@@ -21,4 +21,15 @@ class Auction extends Model
         'status',
         'winner_paid',
     ];
+    public function car()
+    {
+        return $this->belongsTo(Car::class, 'car_id', 'id');
+    }
+
+    public function highestBidder()
+    {
+        // 'highest_bidder_id' is the foreign key in the auctions table
+        // 'uid' is the primary key in the users table
+        return $this->belongsTo(User::class, 'highest_bidder_id', 'uid');
+    }
 }

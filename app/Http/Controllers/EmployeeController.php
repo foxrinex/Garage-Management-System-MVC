@@ -20,6 +20,7 @@ use Illuminate\Support\Facades\Hash;
 use App\Models\CarRepair;
 use App\Models\RepairPartsSelected;
 use App\Models\WarrantyClaim;
+use App\Models\Order;
 
 class EmployeeController extends Controller
 {
@@ -499,7 +500,7 @@ class EmployeeController extends Controller
             $tagList = $request->input('tags', []);
 
             if (is_array($tagList)) {
-                for (int $i = 0; $i < count($tagList); $i = $i + 1) {
+                for ($i = 0; $i < count($tagList); $i = $i + 1) {
                     $tagString = $tagString . $tagList[$i];
 
                     if ($i < count($tagList) - 1) {
@@ -640,7 +641,7 @@ class EmployeeController extends Controller
         if (is_array($tagsArray)) {
             $tagCount = count($tagsArray);
 
-            for (int $i = 0; $i < $tagCount; $i = $i + 1) {
+            for ($i = 0; $i < $tagCount; $i = $i + 1) {
                 if ($i == 0) {
                     $tagsStr = $tagsArray[$i];
                 } else {
@@ -834,7 +835,7 @@ class EmployeeController extends Controller
                         RepairPartsSelected::where('repair_id', $repairId)->delete();
 
                         $partsCount = count($selectedParts);
-                        for (int $i = 0; $i < $partsCount; $i = $i + 1) {
+                        for ($i = 0; $i < $partsCount; $i = $i + 1) {
                             $productId = $selectedParts[$i];
 
                             if (!empty($productId)) {
@@ -895,7 +896,7 @@ class EmployeeController extends Controller
                     $isAllowed = false;
 
                     $allowedCount = count($allowedToCancel);
-                    for (int $k = 0; $k < $allowedCount; $k = $k + 1) {
+                    for ($k = 0; $k < $allowedCount; $k = $k + 1) {
                         if ($currentStatus === $allowedToCancel[$k]) {
                             $isAllowed = true;
                         }
@@ -905,7 +906,7 @@ class EmployeeController extends Controller
                         $partsToReturn = RepairPartsSelected::where('repair_id', $repairId)->get();
 
                         $partsReturnCount = count($partsToReturn);
-                        for (int $i = 0; $i < $partsReturnCount; $i = $i + 1) {
+                        for ($i = 0; $i < $partsReturnCount; $i = $i + 1) {
                             $pId = $partsToReturn[$i]->product_id;
 
                             $product = Product::where('id', $pId)->lockForUpdate()->first();

@@ -46,17 +46,18 @@
                             $isUnread = ($msg->status == 'Unread');
                         @endphp
 
-                        <div class="accordion-item shadow-sm mb-3 border rounded">
+                        <div class="accordion-item shadow-sm mb-3 border rounded" id="accordion-item-{{ $msgId }}">
                             <h2 class="accordion-header" id="flush-heading_{{ $msgId }}">
                               <button class="accordion-button collapsed" 
                                       type="button" 
                                       data-bs-toggle="collapse" 
-                                      data-bs-target="#flush-collapse_{{ $msgId }}">
+                                      data-bs-target="#flush-collapse_{{ $msgId }}"
+                                      data-message-id="{{ $msgId }}">
                             
-                                <i class="fa fa-envelope-o me-3 {{ $isUnread ? 'text-danger' : 'text-primary' }}"></i>
+                                <i id="icon-{{ $msgId }}" class="fa fa-envelope-o me-3 {{ $isUnread ? 'text-danger' : 'text-primary' }}"></i>
                                 
                                 <div class="d-flex justify-content-between w-100 me-3">
-                                    <span class="{{ $isUnread ? 'fw-bold' : '' }}">
+                                    <span id="sender-{{ $msgId }}" class="{{ $isUnread ? 'fw-bold' : '' }}">
                                         {{ $msg->sender_full_name }}
                                     </span>
                                     <small class="text-muted">{{ date("M d, Y", strtotime($msg->date_time)) }}</small>
@@ -108,5 +109,55 @@
     </div>
     
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.0/dist/js/bootstrap.bundle.min.js"></script>  
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const collapseElements = document.querySelectorAll('.accordion-collapse');
+
+            collapseElements.forEach(function (collapseEl) {
+                collapseEl.addEventListener('show.bs.collapse', function () {
+                    // Extract message ID from the collapse element's ID
+                    const msgId = this.id.replace('flush-collapse_', '');
+                    const iconEl = document.getElementById('icon-' + msgId);
+                    const senderEl = document.getElementById('sender-' + msgId);
+
+                    // Check if it's currently unread visually
+                    if (iconEl && iconEl.classList.contains('text-danger')) {
+                        // Send fetch request to mark as read in the backend
+                        fetch("{{ url('/manager/messages/mark-read') }}/" + msgId, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                            }
+                        })
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.success) {
+                                // Update UI smoothly without reloading
+                                iconEl.classList.remove('text-danger');
+                                iconEl.classList.add('text-primary');
+                                if (senderEl) {
+                                    senderEl.classList.remove('fw-bold');
+                                }
+
+                                // Update the navbar badge count dynamically
+                                const badgeEl = document.querySelector('#navbar-unread-badge .badge');
+                                if (badgeEl) {
+                                    let currentCount = parseInt(badgeEl.innerText);
+                                    if (currentCount > 1) {
+                                        badgeEl.innerText = currentCount - 1;
+                                    } else {
+                                        badgeEl.remove(); // Remove badge if count drops to 0
+                                    }
+                                }
+                            }
+                        })
+                        .catch(error => console.error('Error marking message as read:', error));
+                    }
+                });
+            });
+        });
+    </script>
 </body>
 </html>
