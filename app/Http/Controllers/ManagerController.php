@@ -2233,7 +2233,7 @@ public function restock(Request $request)
         return view('manager.inventory-view', compact('products', 'search'));
     }
 
-    public function index(Request $request)
+    public function messages(Request $request)
     {
         // Mark all unread messages as read when visiting the inbox
         Message::where('status', 'Unread')->update(['status' => 'Read']);
@@ -2252,5 +2252,430 @@ public function restock(Request $request)
         $messages = $query->orderBy('message_id', 'DESC')->get();
 
         return view('manager.message', compact('messages', 'search'));
+    }
+
+
+    public function editProduct(Request $request, $id)
+    {
+        $product = Product::findOrFail($id);
+
+        // Fetch ONLY categories where type is 'Part'
+        $categories = Category::where('type', 'Part')->orderBy('category_name', 'ASC')->get();
+
+        // Fetch all available compatibility tags
+        $allTags = Tag::orderBy('tag_name', 'ASC')->get();
+
+        // Handle current tags for comparison
+        $currentTagsString = $product->tags ?? "";
+        $currentTagsArray = explode(',', $currentTagsString);
+
+        return view('manager.product-edit', compact('product', 'categories', 'allTags', 'currentTagsArray'));
+    }
+
+    public function profileIndex()
+    {
+        $userId = Auth::id(); // Assumes standard Laravel auth storing user id
+
+        // Fetch manager details joined with the user table using Eloquent
+        $manager = Manager::where('user_id', $userId)
+            ->join('users', 'manager.user_id', '=', 'users.uid')
+            ->select('users.username', 'manager.*')
+            ->first();
+
+        return view('manager.profile', compact('manager'));
+    }
+
+    public function editProfile()
+    {
+        $userId = Auth::id();
+        $manager = Manager::where('user_id', $userId)->first();
+
+        return view('manager.profile-edit', compact('manager'));
+    }
+
+    public function RepairEdit($id)
+    {
+        $repair = CarRepair::with('customer')->where('repair_id', $id)->first();
+
+        if (!$repair) {
+            return redirect()->route('manager.repair-house')->with('error', 'Repair job not found.');
+        }
+
+        // Fetch currently saved parts
+        $savedPartsResults = RepairPartSelected::where('repair_id', $id)->get();
+        $savedPartIds = [];
+        for ($i = 0; $i < count($savedPartsResults); $i = $i + 1) {
+            $savedPartIds[] = $savedPartsResults[$i]->product_id;
+        }
+
+        $repairType = $repair->repair_type ?? 'Repair';
+
+        // Fetch Categories for parts (type = 'Part')
+        $categories = Category::where('type', 'Part')->orderBy('category_name', 'ASC')->get();
+
+        // Fetch Products in stock
+        $products = Product::where('quantity', '>', 0)->orderBy('product_name', 'ASC')->get();
+
+        $canEditDetails = ($repair->status == 'Inspecting');
+
+        return view('manager.repair-edit', compact(
+            'repair', 
+            'repairType', 
+            'savedPartIds', 
+            'categories', 
+            'products', 
+            'canEditDetails'
+        ));
+    }
+        
+
+
+    public function repairHouseIndex()
+    {
+        $allRepairs = CarRepair::with('customer')->orderBy('repair_id', 'DESC')->get();
+
+        $pendingCount = 0;
+        $activeJobsCount = 0;
+        $readyCount = 0;
+        $rejectedCount = 0;
+        $completedCount = 0;
+        $totalRevenue = 0;
+
+        foreach ($allRepairs as $r) {
+            $status = $r->status;
+
+            // Active Jobs are those not Completed and not Rejected
+            if ($status != 'Completed' && $status != 'Rejected') {
+                $activeJobsCount++;
+            }
+
+            if ($status == 'Pending') {
+                $pendingCount++;
+            }
+
+            if ($status == 'Ready') {
+                $readyCount++;
+            }
+
+            if ($status == 'Rejected') {
+                $rejectedCount++;
+            }
+
+            if ($status == 'Completed') {
+                $completedCount++;
+            }
+
+            // Only add to total revenue if the job is NOT Rejected
+            if ($status != 'Rejected') {
+                $totalRevenue += ($r->labor_fee + $r->parts_total);
+            }
+        }
+
+        return view('manager.repair-house', compact(
+            'allRepairs', 
+            'pendingCount', 
+            'activeJobsCount', 
+            'readyCount', 
+            'rejectedCount', 
+            'completedCount', 
+            'totalRevenue'
+        ));
+    }
+
+
+    public function salesHistoryIndex(Request $request)
+    {
+        $search = $request->input('search', '');
+
+        // Eloquent query fetching orders with left joins matching the legacy SQL structure
+        $query = Order::query()
+            ->leftJoin('users', 'orders.customer_id', '=', 'users.uid')
+            ->leftJoin('products', 'orders.product_id', '=', 'products.id')
+            ->leftJoin('cars', 'orders.car_id', '=', 'cars.id')
+            ->select(
+                'orders.*',
+                'users.username',
+                'products.product_name AS p_name',
+                'cars.brand AS car_brand',
+                'cars.model AS car_model'
+            );
+
+        if (!empty($search)) {
+            $query->where(function ($q) use ($search) {
+                $q->where('orders.product_name', 'LIKE', "%{$search}%")
+                ->orWhere('products.product_name', 'LIKE', "%{$search}%")
+                ->orWhere('users.username', 'LIKE', "%{$search}%")
+                ->orWhere('cars.brand', 'LIKE', "%{$search}%")
+                ->orWhere('cars.model', 'LIKE', "%{$search}%");
+            });
+        }
+
+        $allOrders = $query->orderBy('orders.id', 'DESC')->get();
+
+        $totalRevenue = 0;
+        $orderCount = $allOrders->count();
+
+        // Explicit for loop to calculate total revenue as requested
+        for ($i = 0; $i < $orderCount; $i = $i + 1) {
+            $totalRevenue = $totalRevenue + $allOrders[$i]->total_price;
+        }
+
+        return view('manager.sales-history', compact('allOrders', 'totalRevenue', 'orderCount', 'search'));
+    }
+
+
+    public function settingsIndex()
+    {
+        // Fetch the single row of settings from the 'setting' table (e.g., id = 1)
+        $setting = Setting::find(1);
+
+        return view('manager.settings', compact('setting'));
+    }
+
+
+    public function showroomIndex(Request $request)
+    {
+        // 1. Fetch Categories for Cars
+        $categories = Category::where('type', 'Car')->orderBy('category_name', 'ASC')->get();
+        $transmissions = ["Automatic", "Manual", "CVT", "DCT", "AMT"];
+
+        // 2. Advanced Filtering Logic using Eloquent query builder
+        $query = Car::from('cars as c')
+            ->join('categories as cat', 'c.category_id', '=', 'cat.id')
+            ->select('c.*', 'cat.category_name')
+            ->selectSub(function ($sub) {
+                $sub->from('wishlist')->whereColumn('product_id', 'c.id')->selectRaw('COUNT(*)');
+            }, 'wishlist_count')
+            ->selectSub(function ($sub) {
+                $sub->from('auctions')->whereColumn('car_id', 'c.id')
+                    ->where(function ($q) {
+                        $q->where('status', 'Active')
+                        ->orWhere(function ($q2) {
+                            $q2->where('status', 'Closed')->where('winner_paid', 0);
+                        });
+                    })->selectRaw('COUNT(*)');
+            }, 'in_auction');
+
+        if ($request->filled('search')) {
+            $search = $request->input('search');
+            $query->where(function ($q) use ($search) {
+                $q->where('c.model', 'LIKE', "%{$search}%")
+                ->orWhere('c.brand', 'LIKE', "%{$search}%");
+            });
+        }
+
+        if ($request->filled('cat_id')) {
+            $query->where('c.category_id', $request->input('cat_id'));
+        }
+
+        if ($request->filled('min_price')) {
+            $query->where('c.price', '>=', $request->input('min_price'));
+        }
+
+        if ($request->filled('max_price')) {
+            $query->where('c.price', '<=', $request->input('max_price'));
+        }
+
+        if ($request->filled('min_year')) {
+            $query->where('c.year', '>=', $request->input('min_year'));
+        }
+
+        if ($request->filled('max_year')) {
+            $query->where('c.year', '<=', $request->input('max_year'));
+        }
+
+        if ($request->filled('max_mileage')) {
+            $query->where('c.mileage', '<=', $request->input('max_mileage'));
+        }
+
+        if ($request->filled('trans')) {
+            $query->where('c.transmission', $request->input('trans'));
+        }
+
+        if ($request->filled('status_filter')) {
+            $sFilter = $request->input('status_filter');
+            if ($sFilter == 'Upcoming') {
+                $query->where('c.status', 'Upcoming');
+            } elseif ($sFilter == 'Out of Stock') {
+                $query->where(function ($q) {
+                    $q->where('c.quantity', '<=', 0)->orWhere('c.status', 'Sold Out');
+                });
+            } elseif ($sFilter == 'In Stock') {
+                $query->where('c.quantity', '>', 0)->where('c.status', 'In Stock');
+            }
+        }
+
+        $cars = $query->orderBy('c.id', 'DESC')->get();
+
+        // 4. Logic to count statuses and total value
+        $countInStock = 0;
+        $countOutOfStock = 0;
+        $countUpcoming = 0;
+        $totalInventoryValue = 0;
+
+        $carCount = $cars->count();
+        for ($i = 0; $i < $carCount; $i = $i + 1) {
+            $car = $cars[$i];
+            $totalInventoryValue = $totalInventoryValue + ($car->price * $car->quantity);
+
+            if ($car->status == 'Upcoming') {
+                $countUpcoming++;
+            } elseif ($car->quantity <= 0 || $car->status == 'Sold Out') {
+                $countOutOfStock++;
+            } else {
+                $countInStock++;
+            }
+        }
+
+        return view('manager.showroom-manage', compact(
+            'categories', 
+            'transmissions', 
+            'cars', 
+            'carCount', 
+            'countUpcoming', 
+            'countOutOfStock', 
+            'countInStock', 
+            'totalInventoryValue'
+        ));
+    }
+
+    public function viewBidHistory($auction_id)
+    {
+        // Fetch Auction & Car Details via Eloquent join matching legacy SQL
+        $auction = Auction::from('auctions as a')
+            ->join('cars as c', 'a.car_id', '=', 'c.id')
+            ->where('a.id', $auction_id)
+            ->select('a.*', 'c.brand', 'c.model', 'c.year')
+            ->first();
+
+        if (!$auction) {
+            return redirect()->route('manager.auction.dashboard')->with('error', 'Auction not found');
+        }
+
+        // Fetch Bid History joining auction_bids and users table
+        $bids = AuctionBid::from('auction_bids as b')
+            ->join('users as u', 'b.customer_id', '=', 'u.uid')
+            ->where('b.auction_id', $auction_id)
+            ->select('b.*', 'u.username')
+            ->orderBy('b.bid_amount', 'DESC')
+            ->orderBy('b.bid_time', 'DESC')
+            ->get();
+
+        $totalBids = $bids->count();
+
+        return view('manager.view-bid-history', compact('auction', 'bids', 'totalBids'));
+    }
+
+    public function viewReviewsIndex($id)
+    {
+        // 1. Fetch Product Name for the header
+        $product = Product::find($id);
+
+        if (!$product) {
+            return redirect()->route('manager.inventory.index')->with('error', 'Product not found.');
+        }
+
+        // 2. Fetch all reviews for this product joining customer details
+        $reviews = Review::from('reviews as r')
+            ->join('customer as cust', 'r.user_id', '=', 'cust.user_id')
+            ->where('r.product_id', $id)
+            ->select('r.*', 'cust.fname', 'cust.lname')
+            ->orderBy('r.id', 'DESC')
+            ->get();
+
+        return view('manager.view-reviews', compact('product', 'reviews', 'id'));
+    }
+
+    public function storeOrUpdateReply(Request $request)
+    {
+        $request->validate([
+            'review_id' => 'required|exists:reviews,id',
+            'product_id' => 'required|exists:products,id',
+            'reply' => 'required|string',
+        ]);
+
+        $review = Review::find($request->input('review_id'));
+
+        if (!$review) {
+            return redirect()->back()->with('error', 'Review not found.');
+        }
+
+        $review->update([
+            'company_reply' => $request->input('reply')
+        ]);
+
+        $message = $request->input('is_edit') ? 'Company reply updated successfully!' : 'Company reply posted successfully!';
+
+        return redirect()->route('manager.inventory.reviews', ['id' => $request->input('product_id')])
+                        ->with('success', $message);
+    }
+
+
+    public function warrantyManageIndex()
+    {
+        // 1. Fetch Product Warranty Claims (Only where car_id is NULL)
+        $productClaims = WarrantyClaim::from('warranty_claims as wc')
+            ->join('customer as c', 'wc.customer_id', '=', 'c.user_id')
+            ->join('orders as o', 'wc.order_id', '=', 'o.id')
+            ->join('products as p', 'o.product_id', '=', 'p.id')
+            ->whereNull('o.car_id')
+            ->select('wc.*', 'c.fname', 'c.lname', 'p.product_name')
+            ->orderBy('wc.id', 'DESC')
+            ->get();
+
+        // 2. Fetch Car Warranty Claims (Only where car_id is NOT NULL)
+        $carClaims = WarrantyClaim::from('warranty_claims as wc')
+            ->join('customer as c', 'wc.customer_id', '=', 'c.user_id')
+            ->join('orders as o', 'wc.order_id', '=', 'o.id')
+            ->join('cars', 'o.car_id', '=', 'cars.id')
+            ->whereNotNull('o.car_id')
+            ->select('wc.*', 'c.fname', 'c.lname', 'cars.model AS car_name', 'cars.brand')
+            ->orderBy('wc.id', 'DESC')
+            ->get();
+
+        return view('manager.warranty-manage', compact('productClaims', 'carClaims'));
+    }
+
+    public function wishlistAnalysisIndex()
+    {
+        // Fetch products with their wishlist count using Eloquent
+        $products = Product::withCount('wishlists')
+            ->having('wishlists_count', '>', 0)
+            ->get()
+            ->map(function ($product) {
+                return [
+                    'id' => $product->id,
+                    'name' => $product->product_name,
+                    'image' => $product->image,
+                    'price' => $product->price,
+                    'wish_count' => $product->wishlists_count,
+                    'category' => 'Part'
+                ];
+            });
+
+        // Fetch cars with their wishlist count using Eloquent
+        $cars = Car::withCount('wishlists')
+            ->having('wishlists_count', '>', 0)
+            ->get()
+            ->map(function ($car) {
+                return [
+                    'id' => $car->id,
+                    'name' => $car->brand . ' ' . $car->model,
+                    'image' => $car->image,
+                    'price' => $car->price,
+                    'wish_count' => $car->wishlists_count,
+                    'category' => 'Car'
+                ];
+            });
+
+        // Merge both collections and sort by wish_count DESC, then price DESC
+        $all_wishlisted = $products->concat($cars)
+            ->sortBy([
+                ['wish_count', 'desc'],
+                ['price', 'desc'],
+            ])
+            ->values();
+
+        return view('manager.wishlist-all', compact('all_wishlisted'));
     }
 }

@@ -28,4 +28,8 @@ class Product extends Model
     {
         return $this->belongsTo(Category::class, 'category_id'); // adjust foreign key column name if different
     }
+    public function wishlists()
+    {
+        return $this->hasMany(Wishlist::class, 'product_id');
+    }
 }

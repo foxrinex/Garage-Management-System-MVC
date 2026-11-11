@@ -147,11 +147,6 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/manager/profile-edit', [ManagerController::class, 'updateProfile'])->name('manager.profile.update');
     Route::post('/manager/repair-update', [ManagerController::class, 'updateRepair'])->name('manager.repair.update');
     Route::post('/manager/reply-review', [ManagerController::class, 'replyToProductReview'])->name('manager.product.review.reply');
-    Route::post('/manager/settings-edit', [ManagerController::class, 'updateSettings'])->name('manager.settings.update');
-    Route::get('/manager/warranty-status/{id}', [ManagerController::class, 'updateWarrantyStatus'])->name('manager.warranty.status');
-
-
-
     Route::get('/manager/auction-add', [ManagerController::class, 'createAuction'])->name('manager.auction.create');
     Route::get('/manager/auction-dashboard', [ManagerController::class, 'auctionDashboard'])->name('manager.auction.dashboard');
     Route::get('/manager/auction-pending-payment', [ManagerController::class, 'auctionPendingPayment'])->name('manager.auction.pending');
@@ -170,8 +165,24 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/manager/inventory', [ManagerController::class, 'inventoryIndex'])->name('manager.inventory');
     Route::post('/manager/builder/settings', [ManagerController::class, 'handleBuilderSettingsPost'])->name('manager.builder.settings');
     Route::get('/manager/inventory-view', [InventoryController::class, 'viewIndex'])->name('manager.inventory.view');
-
-    Route::get('/manager/messages', [MessageController::class, 'index'])->name('manager.messages');
+    Route::get('/manager/messages', [ManagerController::class, 'messages'])->name('manager.messages');
+    Route::get('/manager/product-edit/{id}', [ManagerController::class, 'editProduct'])->name('manager.product.edit');
+    Route::get('/manager/product-view/{id}', [ManagerController::class, 'viewProduct'])->name('manager.product.view');
+    Route::get('/manager/profile', [ManagerController::class, 'profileIndex'])->name('manager.profile');
+    Route::get('/manager/profile/edit', [ManagerController::class, 'editProfile'])->name('manager.profile.edit');
+    Route::post('/manager/profile/update', [ManagerController::class, 'updateProfile'])->name('manager.profile.update');
+    Route::get('/manager/repair-edit/{id}', [ManagerController::class, 'RepairEdit'])->name('manager.repair.edit');
+    Route::get('/manager/repair-house', [ManagerController::class, 'repairHouseIndex'])->name('manager.repair-house');
+    Route::get('/manager/sales-history', [ManagerController::class, 'salesHistoryIndex'])->name('manager.sales-history');
+    Route::get('/manager/settings', [ManagerController::class, 'settingsIndex'])->name('manager.settings');
+    Route::post('/manager/settings/update', [ManagerController::class, 'updateSettings'])->name('manager.settings.update');
+    Route::get('/manager/showroom', [ManagerController::class, 'showroomIndex'])->name('manager.showroom');
+    Route::get('/manager/auctions/{auction_id}/bids', [ManagerController::class, 'viewBidHistory'])->name('manager.auction.bids');
+    Route::get('/manager/inventory/reviews/{id}', [ManagerController::class, 'viewReviewsIndex'])->name('manager.inventory.reviews');
+    Route::post('/manager/inventory/reviews/reply', [ManagerController::class, 'storeOrUpdateReply'])->name('manager.inventory.reviews.reply');
+    Route::get('/manager/warranties', [ManagerController::class, 'warrantyManageIndex'])->name('manager.warranties');
+    Route::get('/manager/warranties/{id}/status/{status}', [ManagerController::class, 'updateWarrantyStatus'])->name('manager.warranties.status');
+    Route::get('/manager/wishlist-analysis', [ManagerController::class, 'wishlistAnalysisIndex'])->name('manager.wishlist.analysis');
 });
 
 

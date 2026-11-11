@@ -25,4 +25,9 @@ class Car extends Model
         'image',
         'in_auction',
     ];
+
+    public function wishlists()
+    {
+        return $this->hasMany(Wishlist::class, 'product_id');
+    }
 }
