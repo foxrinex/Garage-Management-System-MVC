@@ -101,6 +101,13 @@ Route::middleware(['auth'])->group(function () {
 
 
 
+
+
+
+
+
+
+
     Route::post('/manager/auction-add', [ManagerController::class, 'storeAuction'])->name('manager.auction.store');
     Route::get('/manager/auction-confirm-payment/{id}', [ManagerController::class, 'confirmAuctionPayment'])->name('manager.auction.confirm.payment');
     Route::get('/manager/auction-delete/{id}', [ManagerController::class, 'deleteAuction'])->name('manager.auction.delete');
@@ -121,13 +128,14 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/manager/category-add', [ManagerController::class, 'storeCategory'])->name('manager.category.store');
 
     //one file
-    Route::post('/manager/employee-register', [ManagerController::class, 'registerEmployee'])->name('manager.employee.register');
-    Route::post('/manager/employee-salary-update', [ManagerController::class, 'updateEmployeeSalary'])->name('manager.employee.salary.update');
-    Route::post('/manager/employee-info-update', [ManagerController::class, 'updateEmployeeInfo'])->name('manager.employee.info.update');
-    Route::get('/manager/employee-delete/{id}', [ManagerController::class, 'deleteEmployee'])->name('manager.employee.delete');
+    Route::post('/manager/employee-register', [ManagerController::class, 'registerEmployee'])->name('manager.employees.store');
+    Route::post('/manager/employee-salary-update', [ManagerController::class, 'updateEmployeeSalary'])->name('manager.employees.salary.update');
+    Route::post('/manager/employee-info-update', [ManagerController::class, 'updateEmployeeInfo'])->name('manager.employees.info.update');
+    Route::get('/manager/employee-delete/{id}', [ManagerController::class, 'deleteEmployee'])->name('manager.employees.delete');
+    Route::get('/manager/employees', [ManagerController::class, 'employeesIndex'])->name('manager.employees.index');
     //file end
 
-    Route::post('/manager/message-delete', [ManagerController::class, 'deleteMessage'])->name('manager.message.delete');
+    Route::post('/manager/message-delete', [ManagerController::class, 'deleteMessage'])->name('manager.messages.delete');
 
     //onefile
     Route::post('/manager/product-restock', [ManagerController::class, 'restockProduct'])->name('manager.product.restock');
@@ -142,8 +150,29 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/manager/settings-edit', [ManagerController::class, 'updateSettings'])->name('manager.settings.update');
     Route::get('/manager/warranty-status/{id}', [ManagerController::class, 'updateWarrantyStatus'])->name('manager.warranty.status');
 
-});
 
+
+    Route::get('/manager/auction-add', [ManagerController::class, 'createAuction'])->name('manager.auction.create');
+    Route::get('/manager/auction-dashboard', [ManagerController::class, 'auctionDashboard'])->name('manager.auction.dashboard');
+    Route::get('/manager/auction-pending-payment', [ManagerController::class, 'auctionPendingPayment'])->name('manager.auction.pending');
+    Route::get('/manager/auction-sales', [ManagerController::class, 'auctionSales'])->name('manager.auction.sales');
+    Route::get('/manager/car-add', [ManagerController::class, 'createCar'])->name('manager.car.add');
+    Route::post('/manager/category-store', [ManagerController::class, 'storeCategory'])->name('manager.category.store');
+    Route::post('/manager/category-update', [ManagerController::class, 'updateCategory'])->name('manager.category.update');
+    Route::get('/manager/car-edit/{id}', [ManagerController::class, 'editCar'])->name('manager.car.edit');
+    Route::put('/manager/car-update/{id}', [ManagerController::class, 'updateCar'])->name('manager.car.update');
+    Route::post('/manager/car-edit/{id}/category-store', [ManagerController::class, 'storeCategoryFromEdit'])->name('manager.car.category.store');
+    Route::post('/manager/car-edit/{id}/category-update', [ManagerController::class, 'updateCategoryFromEdit'])->name('manager.car.category.update');
+    Route::get('/manager/car-edit/{id}/category-delete/{catId}', [ManagerController::class, 'deleteCategoryFromEdit'])->name('manager.car.category.delete');
+    Route::get('/manager/car-view/{id}', [ManagerController::class, 'carView'])->name('manager.car.view');
+    Route::get('/manager/car-review-reply-delete/{id}', [ManagerController::class, 'deleteReviewReply'])->name('manager.car.review.reply.delete');
+    Route::get('/manager/dashboard', [ManagerController::class, 'dashboardIndex'])->name('manager.dashboard');
+    Route::get('/manager/inventory', [ManagerController::class, 'inventoryIndex'])->name('manager.inventory');
+    Route::post('/manager/builder/settings', [ManagerController::class, 'handleBuilderSettingsPost'])->name('manager.builder.settings');
+    Route::get('/manager/inventory-view', [InventoryController::class, 'viewIndex'])->name('manager.inventory.view');
+
+    Route::get('/manager/messages', [MessageController::class, 'index'])->name('manager.messages');
+});
 
 
     

@@ -23,7 +23,7 @@ class CarBuilderHelper
         $common = [];
         $isFirstSet = true;
 
-        for (int $i = 0; $i < count($allTags); $i = $i + 1) {
+        for ($i = 0; $i < count($allTags); $i = $i + 1) {
             $tagsString = $allTags[$i];
             $specificTags = [];
 
@@ -32,7 +32,7 @@ class CarBuilderHelper
                 $specificTags[] = 'universal';
             } else {
                 $currentTags = explode(',', $tagsString);
-                for (int $j = 0; $j < count($currentTags); $j = $j + 1) {
+                for ($j = 0; $j < count($currentTags); $j = $j + 1) {
                     $tag = strtolower(trim($currentTags[$j]));
                     
                     if ($tag !== "" && $tag !== "null") {
@@ -47,14 +47,14 @@ class CarBuilderHelper
             } else {
                 // Check for Universal logic
                 $hasUniversalInCommon = false;
-                for (int $u = 0; $u < count($common); $u = $u + 1) {
+                for ($u = 0; $u < count($common); $u = $u + 1) {
                     if ($common[$u] == 'universal') { 
                         $hasUniversalInCommon = true; 
                     }
                 }
 
                 $hasUniversalInCurrent = false;
-                for (int $u = 0; $u < count($specificTags); $u = $u + 1) {
+                for ($u = 0; $u < count($specificTags); $u = $u + 1) {
                     if ($specificTags[$u] == 'universal') { 
                         $hasUniversalInCurrent = true; 
                     }
@@ -69,8 +69,8 @@ class CarBuilderHelper
                 } else {
                     // Manual intersection for common tags
                     $newCommon = [];
-                    for (int $k = 0; $k < count($common); $k = $k + 1) {
-                        for (int $l = 0; $l < count($specificTags); $l = $l + 1) {
+                    for ($k = 0; $k < count($common); $k = $k + 1) {
+                        for ($l = 0; $l < count($specificTags); $l = $l + 1) {
                             if ($common[$k] == $specificTags[$l]) {
                                 $newCommon[] = $common[$k];
                             }

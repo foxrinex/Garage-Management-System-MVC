@@ -1099,6 +1099,18 @@ class CustomerController extends Controller
 
         // 2. Only allow deletion if status is Pending
         if ($currentStatus === 'Pending') {
+            
+            // 3. Delete the associated vehicle image from the uploads folder
+            $imageFileName = $repair->car_image;
+            
+            if (!empty($imageFileName)) {
+                $imagePath = public_path('uploads/' . $imageFileName);
+                
+                if (file_exists($imagePath)) {
+                    unlink($imagePath);
+                }
+            }
+
             $deleted = $repair->delete();
 
             if ($deleted) {

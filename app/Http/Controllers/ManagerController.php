@@ -1727,4 +1727,530 @@ class ManagerController extends Controller
             return redirect()->route('warranty.manage')->with('error', 'An error occurred while updating the warranty claim.');
         }
     }
+
+    private function getNavbarData()
+    {
+        $userId = session('user_id');
+        $manager = Manager::where('user_id', $userId)->first();
+        
+        $navDisplayName = $manager ? $manager->fname : "Manager";
+        
+        // Fetch count of unread inquiries
+        $unreadCount = Message::where('status', 'Unread')->count();
+
+        return [
+            'nav_display_name' => $navDisplayName,
+            'unread_count' => $unreadCount
+        ];
+    }
+
+
+    public function auctionDashboard(Request $request)
+    {
+        // 1. Fetch Categories for Filter (Cars only)
+        $categories = Category::where('type', 'Car')->orderBy('category_name', 'ASC')->get();
+
+        // 2. Advanced Filtering Logic for Auctions using Eloquent
+        $query = Auction::with(['car.category']);
+
+        if ($request->filled('search')) {
+            $search = $request->input('search');
+            $query->whereHas('car', function ($q) use ($search) {
+                $q->where('model', 'like', "%{$search}%")
+                  ->orWhere('brand', 'like', "%{$search}%");
+            });
+        }
+
+        if ($request->filled('status_filter')) {
+            $query->where('status', $request->input('status_filter'));
+        }
+
+        if ($request->filled('category')) {
+            $categoryName = $request->input('category');
+            $query->whereHas('car.category', function ($q) use ($categoryName) {
+                $q->where('category_name', $categoryName);
+            });
+        }
+
+        if ($request->filled('transmission')) {
+            $transmission = $request->input('transmission');
+            $query->whereHas('car', function ($q) use ($transmission) {
+                $q->where('transmission', $transmission);
+            });
+        }
+
+        if ($request->filled('min_price')) {
+            $query->where('current_bid', '>=', $request->input('min_price'));
+        }
+
+        if ($request->filled('max_price')) {
+            $query->where('current_bid', '<=', $request->input('max_price'));
+        }
+
+        if ($request->filled('min_year')) {
+            $minYear = $request->input('min_year');
+            $query->whereHas('car', function ($q) use ($minYear) {
+                $q->where('year', '>=', $minYear);
+            });
+        }
+
+        if ($request->filled('max_year')) {
+            $maxYear = $request->input('max_year');
+            $query->whereHas('car', function ($q) use ($maxYear) {
+                $q->where('year', '<=', $maxYear);
+            });
+        }
+
+        if ($request->filled('max_mileage')) {
+            $maxMileage = $request->input('max_mileage');
+            $query->whereHas('car', function ($q) use ($maxMileage) {
+                $q->where('mileage', '<=', $maxMileage);
+            });
+        }
+
+        if ($request->filled('start_date')) {
+            $query->where('end_time', '>=', $request->input('start_date') . ' 00:00:00');
+        }
+
+        if ($request->filled('end_date')) {
+            $query->where('end_time', '<=', $request->input('end_date') . ' 23:59:59');
+        }
+
+        $auctions = $query->orderBy('created_at', 'DESC')->get();
+
+        // 3. Calculate Stats
+        $totalActive = 0;
+        $unpaidAuctions = 0;
+        $auctionCount = $auctions->count();
+
+        // Pull total earnings from auction_sales table
+        $totalEarnings = AuctionSale::sum('sale_price') ?? 0;
+
+        foreach ($auctions as $a) {
+            if ($a->status == 'Active') {
+                $totalActive++;
+            }
+            if ($a->status == 'Closed' && $a->winner_paid == 0) {
+                $unpaidAuctions++;
+            }
+        }
+
+        return view('manager.auction-dashboard', compact(
+            'categories', 
+            'auctions', 
+            'totalActive', 
+            'unpaidAuctions', 
+            'auctionCount', 
+            'totalEarnings'
+        ));
+    }
+
+
+    public function createAuction()
+    {
+        // 1. Fetch current year setting
+        $setting = Setting::select('current_year')->first();
+        $currYear = $setting ? $setting->current_year : date('Y');
+
+        // 2. Fetch Car categories
+        $categories = Category::where('type', 'Car')->orderBy('category_name', 'ASC')->get();
+
+        // 3. Transmission list
+        $transmissions = ["Automatic", "Manual", "CVT", "DCT", "AMT"];
+
+        // 4. Fetch in-stock inventory cars available for auction
+        $inventoryCars = Car::where('status', 'In Stock')
+                            ->where('quantity', '>', 0)
+                            ->orderBy('brand', 'ASC')
+                            ->get(['id', 'brand', 'model', 'year', 'price', 'quantity']);
+
+        $now = date('Y-m-d\TH:i');
+
+        return view('manager.auction-add', compact('currYear', 'categories', 'transmissions', 'inventoryCars', 'now'));
+    }
+
+
+
+    public function auctionPendingPayment(Request $request)
+    {
+        // 1. Fetch System Settings & Categories
+        $settingData = Setting::select('current_year')->first();
+        $currentSystemYear = $settingData ? $settingData->current_year : date('Y');
+
+        $categories = Category::where('type', 'Car')->orderBy('category_name', 'ASC')->get();
+        $transmissions = ["Automatic", "Manual", "CVT", "DCT", "AMT"];
+
+        // 2. Initialize Filter Variables
+        $searchName = $request->input('search_name', '');
+        $brand = $request->input('brand', '');
+        $model = $request->input('model', '');
+        $catId = $request->input('cat_id', '');
+        $minPrice = $request->input('min_price', '');
+        $maxPrice = $request->input('max_price', '');
+        $minYear = $request->input('min_year', '');
+        $maxYear = $request->input('max_year', '');
+        $maxMileage = $request->input('max_mileage', '');
+        $transmission = $request->input('transmission', '');
+
+        // 3. Build Filtered Query using Eloquent
+        $query = Auction::with(['car.category', 'highestBidder'])
+            ->where('status', 'Closed')
+            ->where('winner_paid', 0);
+
+        if (!empty($searchName)) {
+            $query->whereHas('highestBidder', function ($q) use ($searchName) {
+                $q->where('fname', 'like', "%{$searchName}%")
+                  ->orWhere('lname', 'like', "%{$searchName}%");
+            });
+        }
+
+        if (!empty($brand)) {
+            $query->whereHas('car', function ($q) use ($brand) {
+                $q->where('brand', 'like', "%{$brand}%");
+            });
+        }
+
+        if (!empty($model)) {
+            $query->whereHas('car', function ($q) use ($model) {
+                $q->where('model', 'like', "%{$model}%");
+            });
+        }
+
+        if (!empty($catId)) {
+            $query->whereHas('car', function ($q) use ($catId) {
+                $q->where('category_id', $catId);
+            });
+        }
+
+        if (!empty($transmission)) {
+            $query->whereHas('car', function ($q) use ($transmission) {
+                $q->where('transmission', $transmission);
+            });
+        }
+
+        if (!empty($minPrice)) {
+            $query->where('current_bid', '>=', $minPrice);
+        }
+
+        if (!empty($maxPrice)) {
+            $query->where('current_bid', '<=', $maxPrice);
+        }
+
+        if (!empty($minYear)) {
+            $query->whereHas('car', function ($q) use ($minYear) {
+                $q->where('year', '>=', $minYear);
+            });
+        }
+
+        if (!empty($maxYear)) {
+            $query->whereHas('car', function ($q) use ($maxYear) {
+                $q->where('year', '<=', $maxYear);
+            });
+        }
+
+        if (!empty($maxMileage)) {
+            $query->whereHas('car', function ($q) use ($maxMileage) {
+                $q->where('mileage', '<=', $maxMileage);
+            });
+        }
+
+        $pending = $query->orderBy('end_time', 'DESC')->get();
+        $pendingCount = $pending->count();
+
+        // 4. Calculate Total Revenue
+        $totalRevenue = $pending->sum('current_bid');
+
+        return view('manager.auction-pending-payment', compact(
+            'currentSystemYear',
+            'categories',
+            'transmissions',
+            'searchName',
+            'brand',
+            'model',
+            'catId',
+            'minPrice',
+            'maxPrice',
+            'minYear',
+            'maxYear',
+            'maxMileage',
+            'transmission',
+            'pending',
+            'pendingCount',
+            'totalRevenue'
+        ));
+    }
+
+    public function auctionSales()
+    {
+        // 1. Fetch Auction Sales Data with left join to handle deleted car records smoothly
+        $sales = AuctionSale::with(['car', 'customer'])
+            ->orderBy('sale_date', 'DESC')
+            ->get();
+            
+        $salesCount = $sales->count();
+
+        // 2. Calculate Total Revenue
+        $totalRevenue = $sales->sum('sale_price');
+
+        return view('manager.auction-sales', compact('sales', 'salesCount', 'totalRevenue'));
+    }
+
+
+    public function createCar()
+    {
+        $setting = Setting::select('current_year')->first();
+        $currYear = $setting ? $setting->current_year : date('Y');
+
+        $categories = Category::where('type', 'Car')->orderBy('category_name', 'ASC')->get();
+        $transmissions = ["Automatic", "Manual", "CVT", "DCT", "AMT"];
+
+        return view('manager.car-add', compact('currYear', 'categories', 'transmissions'));
+    }
+
+
+    public function updateCategory(Request $request)
+    {
+        $category = Category::findOrFail($request->input('category_id_edit'));
+        $category->update([
+            'category_name' => $request->input('category_name')
+        ]);
+
+        return redirect()->route('manager.car.add')->with('success', 'Category updated successfully');
+    }
+
+    
+
+
+    public function editCar($id)
+    {
+        $car = Car::findOrFail($id);
+
+        $setting = Setting::select('current_year')->first();
+        $currYear = $setting ? $setting->current_year : date('Y');
+
+        $categories = Category::where('type', 'Car')->orderBy('category_name', 'ASC')->get();
+        $transmissions = ["Automatic", "Manual", "CVT", "DCT", "AMT"];
+
+        return view('manager.car-edit', compact('car', 'currYear', 'categories', 'transmissions'));
+    }
+
+
+    public function storeCategoryFromEdit(Request $request, $id)
+    {
+        $catName = $request->input('category_name');
+        if (!empty($catName)) {
+            Category::create([
+                'category_name' => $catName,
+                'type' => 'Car'
+            ]);
+        }
+        return redirect()->route('manager.car.edit', $id)->with('success', 'Category added');
+    }
+
+    public function updateCategoryFromEdit(Request $request, $id)
+    {
+        $catId = $request->input('category_id_edit');
+        $newName = $request->input('category_name');
+        if (!empty($catId) && !empty($newName)) {
+            Category::where('id', $catId)->update(['category_name' => $newName]);
+        }
+        return redirect()->route('manager.car.edit', $id)->with('success', 'Category updated');
+    }
+
+    public function deleteCategoryFromEdit($id, $catId)
+    {
+        Category::where('id', $catId)->delete();
+        return redirect()->route('manager.car.edit', $id)->with('success', 'Category deleted');
+    }
+
+    public function carView(Request $request, $id)
+    {
+        // 1. Fetch Car Details with Category
+        $car = Car::with('category')->findOrFail($id);
+
+        // 2. Check if car is in Active Auction or Unpaid Closed Auction
+        $isLockedByAuction = Auction::where('car_id', $id)
+            ->where(function ($query) {
+                $query->where('status', 'Active')
+                      ->orWhere(function ($q) {
+                          $q->where('status', 'Closed')->where('winner_paid', 0);
+                      });
+            })
+            ->exists();
+
+        // 3. Fetch Reviews with Customer details
+        $reviews = Review::with('customer')
+            ->where('car_id', $id)
+            ->orderBy('date_posted', 'DESC')
+            ->get();
+
+        $editId = $request->input('edit_id');
+
+        return view('manager.car-view', compact('car', 'isLockedByAuction', 'reviews', 'editId'));
+    }
+
+
+    public function deleteCarReviewReply(Request $request, $id)
+    {
+        $carId = $request->input('car_id');
+        
+        $review = Review::findOrFail($id);
+        $carId = $carId ?? $review->car_id;
+
+        $review->update([
+            'company_reply' => null
+        ]);
+
+        return redirect()->route('manager.car.view', $carId)->with('success', 'Company response removed');
+    }
+
+    public function dashboardIndex()
+    {
+        $userId = Auth::id(); // Assumes standard Laravel auth storing user id
+
+        // 1. Fetch Manager Profile Info via relationship or join
+        $manager = Manager::where('user_id', $userId)
+            ->join('users', 'manager.user_id', '=', 'users.uid')
+            ->select('users.username', 'manager.*')
+            ->first();
+
+        // 2. Fetch 5 most recent orders for the manager view
+        $recentOrders = Order::with(['product', 'car', 'customer'])
+            ->orderBy('id', 'DESC')
+            ->limit(5)
+            ->get();
+
+        // 3. Fetch 5 most recent repairs for the manager view
+        $recentRepairs = CarRepair::with('customer')
+            ->orderBy('repair_id', 'DESC')
+            ->limit(5)
+            ->get();
+
+        // 4. Count unread messages/inquiries for stats
+        $unreadCount = Message::where('status', 'Unread')->count();
+
+        return view('manager.index', compact('manager', 'recentOrders', 'recentRepairs', 'unreadCount'));
+    }
+
+
+
+
+    public function inventoryIndex()
+{
+    // Fetch ONLY Parts for the stock adjustment dropdown
+    $products = Product::whereHas('category', function ($query) {
+        $query->where('type', 'Part');
+    })->orderBy('product_name', 'ASC')->get();
+
+    // Fetch ONLY 'Part' categories
+    $categories = Category::where('type', 'Part')->orderBy('category_name', 'ASC')->get();
+
+    // Fetch all tags from the system
+    $all_tags = Tag::orderBy('tag_name', 'ASC')->get();
+
+    return view('manager.inventory', compact('products', 'categories', 'all_tags'));
+}
+
+public function restock(Request $request)
+{
+    $productId = $request->input('product_id');
+    $type = $request->input('type');
+    $quantity = (int) $request->input('quantity', 1);
+
+    $product = Product::find($productId);
+    if ($product) {
+        if ($type === 'add') {
+            $product->quantity += $quantity;
+        } else {
+            $product->quantity = max(0, $product->quantity - $quantity);
+        }
+        $product->save();
+        return redirect()->route('manager.inventory')->with('success', 'Stock updated successfully.');
+    }
+    return redirect()->route('manager.inventory')->with('error', 'Part not found.');
+}
+
+    public function storeNewPart(Request $request)
+    {
+        $name = $request->input('p_name');
+        $categoryId = $request->input('category_id');
+        $price = $request->input('price');
+        $quantity = $request->input('quantity', 1);
+
+        if (empty($name) || empty($categoryId) || $price === null) {
+            return redirect()->route('manager.inventory')->with('error', 'Please fill in all required fields.');
+        }
+
+        $imageName = 'default-part.png';
+        if ($request->hasFile('product_image')) {
+            $file = $request->file('product_image');
+            if ($file->isValid()) {
+                $imgExLc = strtolower($file->getClientOriginalExtension());
+                $imageName = "PART-" . uniqid('', true) . '.' . $imgExLc;
+                $file->move(public_path('uploads'), $imageName);
+            }
+        }
+
+        Product::create([
+            'product_name' => $name,
+            'category_id' => $categoryId,
+            'description' => $request->input('description'),
+            'price' => $price,
+            'quantity' => $quantity,
+            'hp' => $request->input('hp', 0),
+            'regular_warranty' => $request->has('regular_warranty') ? 1 : 0,
+            'replacement_warranty' => $request->has('replacement_warranty') ? 1 : 0,
+            'image' => $imageName
+        ]);
+
+        return redirect()->route('manager.inventory')->with('success', 'New part registered successfully.');
+    }
+
+    public function viewIndex(Request $request)
+    {
+        $search = $request->input('search', '');
+
+        // Eloquent query matching the original SQL search logic
+        $query = Product::with('category')
+            ->withCount('wishlist as wishlist_count')
+            ->whereHas('category', function ($q) {
+                $q->where('type', 'Part');
+            });
+
+        if (!empty($search)) {
+            $query->where(function ($q) use ($search) {
+                $q->where('product_name', 'LIKE', "%{$search}%")
+                ->orWhere('description', 'LIKE', "%{$search}%")
+                ->orWhereHas('category', function ($catQuery) use ($search) {
+                    $catQuery->where('category_name', 'LIKE', "%{$search}%");
+                })
+                ->orWhere('tags', 'LIKE', "%{$search}%");
+            });
+        }
+
+        $products = $query->orderBy('id', 'DESC')->get();
+
+        return view('manager.inventory-view', compact('products', 'search'));
+    }
+
+    public function index(Request $request)
+    {
+        // Mark all unread messages as read when visiting the inbox
+        Message::where('status', 'Unread')->update(['status' => 'Read']);
+
+        $search = $request->input('search');
+
+        $query = Message::query();
+
+        if (!empty($search)) {
+            $query->where(function ($q) use ($search) {
+                $q->where('sender_full_name', 'LIKE', "%{$search}%")
+                  ->orWhere('sender_email', 'LIKE', "%{$search}%");
+            });
+        }
+
+        $messages = $query->orderBy('message_id', 'DESC')->get();
+
+        return view('manager.message', compact('messages', 'search'));
+    }
 }
