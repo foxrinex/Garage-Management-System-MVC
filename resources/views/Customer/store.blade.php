@@ -144,9 +144,10 @@
                                                 <i class="fa fa-warning"></i> Stock Limit in Cart
                                             </div>
                                         @else
-                                            <form action="{{ route('customer.add.to.cart') }}" method="POST">
+                                            <form action="{{ route('customer.cart.add') }}" method="POST">
                                                 @csrf
                                                 <input type="hidden" name="id" value="{{ $p->id }}">
+                                                <input type="hidden" name="source" value="store">
                                                 <div class="input-group input-group-sm mb-2">
                                                     <span class="input-group-text">Qty</span>
                                                     <input type="number" name="qty" class="form-control" value="1" min="1" max="{{ $p->quantity - $currentInCart }}">

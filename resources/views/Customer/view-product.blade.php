@@ -96,9 +96,11 @@
                                        <i class="fa {{ $wish_icon }} me-2"></i> {{ $wish_text }}
                                     </a>
 
-                                @elseif ($product->status == 'In Stock' && $product->quantity > 0)
-                                    <form action="{{ route('customer.product.check.stock', $product->id) }}" method="POST">
+                                    @elseif ($product->status == 'In Stock' && $product->quantity > 0)
+                                    <form action="{{ route('customer.cart.add') }}" method="POST">
                                         @csrf
+                                        <input type="hidden" name="id" value="{{ $product->id }}">
+                                        <input type="hidden" name="source" value="view">
                                         <div class="d-flex align-items-center gap-2 mb-3">
                                             <div class="input-group input-group-lg" style="width: 160px;">
                                                 <span class="input-group-text bg-white border-end-0 qty-input"><i class="fa fa-cubes"></i></span>
@@ -115,8 +117,8 @@
                                             </div>
                                             <div class="col-4">
                                                 <a href="{{ route('customer.wishlist.handle', ['id' => $product->id, 'action' => $wish_action, 'source' => 'view']) }}" 
-                                                   class="btn {{ $wish_btn_class }} btn-lg w-100 py-3 rounded-4 shadow-sm">
-                                                   <i class="fa {{ $wish_icon }}"></i>
+                                                class="btn {{ $wish_btn_class }} btn-lg w-100 py-3 rounded-4 shadow-sm">
+                                                <i class="fa {{ $wish_icon }}"></i>
                                                 </a>
                                             </div>
                                         </div>

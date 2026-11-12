@@ -60,20 +60,24 @@
                                 @foreach ($orders as $o)
                                     @php
                                         $displayName = "Item Deleted";
-                                        $displayImg = "";
+                                        $displayImg = "deleted-part.png"; 
                                         $viewLink = "#";
                                         $category = "Unknown";
                                         $isDeleted = true;
 
                                         if ($o->product) {
                                             $displayName = $o->product->product_name;
-                                            $displayImg = $o->product->image;
+                                            if (!empty($o->product->image)) {
+                                                $displayImg = $o->product->image;
+                                            }
                                             $viewLink = route('customer.product.view', $o->product_id);
                                             $category = "Parts & Acc.";
                                             $isDeleted = false;
                                         } elseif ($o->car) {
                                             $displayName = $o->car->brand . " " . $o->car->model;
-                                            $displayImg = $o->car->image;
+                                            if (!empty($o->car->image)) {
+                                                $displayImg = $o->car->image;
+                                            }
                                             $viewLink = route('customer.car.view', $o->car_id);
                                             $category = "Vehicle";
                                             $isDeleted = false;
@@ -91,19 +95,17 @@
                                     <tr class="align-middle border-bottom">
                                         <td class="ps-4 text-muted fw-bold">#{{ $o->id }}</td>
                                         <td>
-                                            @if (!empty($displayImg))
-                                                <img src="{{ asset('uploads/' . $displayImg) }}" class="img-thumbnail-custom shadow-sm border" onerror="this.src='https://via.placeholder.com/70x50?text=Image'">
-                                            @else
-                                                <div class="img-thumbnail-custom bg-light d-flex align-items-center justify-content-center border">
-                                                    <i class="fa fa-image text-muted"></i>
-                                                </div>
-                                            @endif
+                                            <img src="{{ asset('uploads/' . $displayImg) }}" class="img-thumbnail-custom shadow-sm border" onerror="this.src='https://via.placeholder.com/70x50?text=Image'">
                                         </td>
                                         <td>
                                             <p class="item-title">
-                                                <a href="{{ $viewLink }}" class="text-decoration-none text-dark fw-bold">
-                                                    {{ $displayName }}
-                                                </a>
+                                                @if (!$isDeleted)
+                                                    <a href="{{ $viewLink }}" class="text-decoration-none text-dark fw-bold">
+                                                        {{ $displayName }}
+                                                    </a>
+                                                @else
+                                                    <span class="text-muted fw-bold">{{ $displayName }}</span>
+                                                @endif
                                             </p>
                                             <span class="badge bg-light text-dark border font-monospace" style="font-size: 0.65rem;">
                                                 {{ $category }}

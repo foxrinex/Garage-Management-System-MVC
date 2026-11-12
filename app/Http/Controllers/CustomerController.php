@@ -88,7 +88,7 @@ class CustomerController extends Controller
         $product = Product::find($productId);
 
         if (!$product) {
-            return redirect()->route('store')->with('error', 'Product not found.');
+            return redirect()->route('customer.store')->with('error', 'Product not found.');
         }
 
         $currentInventory = $product->quantity;
@@ -111,7 +111,7 @@ class CustomerController extends Controller
             }
 
             // Redirect back to the product view page with the specific error
-            return redirect()->route('product.view', ['id' => $productId])->with('error', $msg);
+            return redirect()->route('customer.product.view', ['id' => $productId])->with('error', $msg);
         }
 
         // 4. Update or Insert into Cart
@@ -127,7 +127,13 @@ class CustomerController extends Controller
             ]);
         }
 
-        return redirect()->route('store')->with('success', "$pName added to cart!");
+        $source = $request->input('source');
+
+        if ($source === 'view') {
+            return redirect()->back()->with('success', "$pName added to cart!");
+        }
+
+        return redirect()->route('customer.store')->with('success', "$pName added to cart!");
     }
 
     public function placeBid(Request $request)
@@ -589,7 +595,7 @@ class CustomerController extends Controller
                     ->get();
 
                 if ($items->isEmpty()) {
-                    return redirect()->route('cart.index')->with('error', 'Your cart is empty.');
+                    return redirect()->route('customer.cart')->with('error', 'Your cart is empty.');
                 }
 
                 for ($i = 0; $i < count($items); $i = $i + 1) {
@@ -614,11 +620,11 @@ class CustomerController extends Controller
                 // 4. Clear the cart
                 Cart::where('customer_id', $userId)->delete();
 
-                return redirect()->route('history')->with('success', 'Thank you for your purchase!');
+                return redirect()->route('customer.history')->with('success', 'Thank you for your purchase!');
             });
 
         } catch (\Exception $e) {
-            return redirect()->route('cart.index')->with('error', 'An error occurred during checkout.');
+            return redirect()->route('customer.cart')->with('error', 'An error occurred during checkout.');
         }
     }
 
@@ -683,7 +689,7 @@ class CustomerController extends Controller
             ->first();
 
         if (!$review) {
-            return redirect()->route('product.view', ['id' => $productId])
+            return redirect()->route('customer.product.view', ['id' => $productId])
                 ->with('error', 'Unauthorized action');
         }
 
@@ -694,10 +700,10 @@ class CustomerController extends Controller
         ]);
 
         if ($updated) {
-            return redirect()->route('product.view', ['id' => $productId])
+            return redirect()->route('customer.product.view', ['id' => $productId])
                 ->with('success', 'Review updated successfully!');
         } else {
-            return redirect()->route('product.view', ['id' => $productId])
+            return redirect()->route('customer.product.view', ['id' => $productId])
                 ->with('error', 'Failed to update review');
         }
     }
@@ -720,7 +726,7 @@ class CustomerController extends Controller
 
                 // Check if cart has items
                 if ($cartItems->isEmpty()) {
-                    return redirect()->route('store')->with('error', 'Order failed: Your cart was empty.');
+                    return redirect()->route('customer.store')->with('error', 'Order failed: Your cart was empty.');
                 }
 
                 // 2. Loop through for validation first (Safety Check)
@@ -729,7 +735,7 @@ class CustomerController extends Controller
                     
                     if ($item->quantity > $item->stock) {
                         $name = $item->product_name;
-                        return redirect()->route('cart.index')->with('error', "Not enough stock for $name");
+                        return redirect()->route('customer.cart')->with('error', "Not enough stock for $name");
                     }
                 }
 
@@ -762,11 +768,11 @@ class CustomerController extends Controller
                 // 4. Clear the cart for this user after success
                 Cart::where('customer_id', $userId)->delete();
 
-                return redirect()->route('history')->with('success', 'Order placed successfully!');
+                return redirect()->route('customer.history')->with('success', 'Order placed successfully!');
             });
 
         } catch (\Exception $e) {
-            return redirect()->route('cart.index')->with('error', 'An error occurred while placing your order.');
+            return redirect()->route('customer.cart')->with('error', 'An error occurred while placing your order.');
         }
     }
 
@@ -783,11 +789,11 @@ class CustomerController extends Controller
         $carId = $request->input('car_id', $request->query('car_id'));
 
         // Determine default fallback redirect
-        $redirectUrl = route('showroom');
+        $redirectUrl = route('customer.showroom');
         if (!empty($productId)) {
-            $redirectUrl = route('product.view', ['id' => $productId]);
+            $redirectUrl = route('customer.product.view', ['id' => $productId]);
         } elseif (!empty($carId)) {
-            $redirectUrl = route('car.view', ['id' => $carId]);
+            $redirectUrl = route('customer.car.view', ['id' => $carId]);
         }
 
         try {
@@ -941,7 +947,7 @@ class CustomerController extends Controller
             ->first();
 
         if (!$cartItem) {
-            return redirect()->route('cart.index');
+            return redirect()->route('customer.cart');
         }
 
         $currentQty = $cartItem->quantity;
@@ -953,13 +959,13 @@ class CustomerController extends Controller
             ]);
 
             if ($updated) {
-                return redirect()->route('cart.index')->with('success', 'Quantity updated successfully');
+                return redirect()->route('customer.cart')->with('success', 'Quantity updated successfully');
             } else {
-                return redirect()->route('cart.index')->with('error', 'Unknown error occurred');
+                return redirect()->route('customer.cart')->with('error', 'Unknown error occurred');
             }
         } else {
             // If quantity is already 1, do not reduce further
-            return redirect()->route('cart.index');
+            return redirect()->route('customer.cart');
         }
     }
 
@@ -980,12 +986,12 @@ class CustomerController extends Controller
             $deleted = $cartItem->delete();
 
             if ($deleted) {
-                return redirect()->route('cart.index')->with('success', 'Item removed from cart');
+                return redirect()->route('customer.cart')->with('success', 'Item removed from cart');
             } else {
-                return redirect()->route('cart.index')->with('error', 'Error occurred');
+                return redirect()->route('customer.cart')->with('error', 'Error occurred');
             }
         } else {
-            return redirect()->route('cart.index');
+            return redirect()->route('customer.cart')->with('error', 'Item not found in cart');
         }
     }
 
@@ -1297,7 +1303,7 @@ class CustomerController extends Controller
         $existingClaim = WarrantyClaim::where('order_id', $orderId)->first();
 
         if ($existingClaim) {
-            return redirect()->route('history')->with('error', 'A claim has already been submitted for this order.');
+            return redirect()->route('customer.history')->with('error', 'A claim has already been submitted for this order.');
         }
 
         // Insert into warranty_claims with status set to 'Pending'
@@ -1310,9 +1316,9 @@ class CustomerController extends Controller
         ]);
 
         if ($claim) {
-            return redirect()->route('history')->with('success', 'Warranty claim submitted successfully!');
+            return redirect()->route('customer.history')->with('success', 'Warranty claim submitted successfully!');
         } else {
-            return redirect()->route('history')->with('error', 'Database error occurred');
+            return redirect()->route('customer.history')->with('error', 'Database error occurred');
         }
     }
 
@@ -1330,16 +1336,16 @@ class CustomerController extends Controller
         $source = $request->query('source');
 
         // Determine where the user should go back to
-        $redirectTo = route('store');
+        $redirectTo = route('customer.store');
 
         if ($source === 'view') {
-            $redirectTo = route('product.view', ['id' => $id]);
+            $redirectTo = route('customer.product.view', ['id' => $id]);
         } elseif ($source === 'wishlist') {
-            $redirectTo = route('wishlist.index');
+            $redirectTo = route('customer.wishlist');
         } elseif ($source === 'showroom') {
-            $redirectTo = route('showroom');
+            $redirectTo = route('customer.showroom');
         } elseif ($source === 'car-view') {
-            $redirectTo = route('car.view', ['id' => $id]);
+            $redirectTo = route('customer.car.view', ['id' => $id]);
         }
 
         // --- REMOVE ACTION ---
@@ -2228,20 +2234,21 @@ class CustomerController extends Controller
                 ->where('product_id', $id)
                 ->exists();
         }
+        $is_wishlisted = $isWishlisted;
 
         return view('customer.view-product', compact(
-            'product', 'reviews', 'canReview', 'myExistingReview', 'isWishlisted'
+            'product', 'reviews', 'canReview', 'myExistingReview', 'is_wishlisted'
         ));
     }
 
     public function checkProductStock(Request $request, $id)
     {
         $userId = session('user_id');
-        $qtyToAdd = $request->input('qty', 1);
+        $qtyToAdd = (int) $request->input('qty', 1);
 
         $product = Product::find($id);
         if (!$product) {
-            return redirect()->route('customer.store');
+            return redirect()->route('customer.store')->with('error', 'Product not found.');
         }
 
         $existingCartItem = Cart::where('customer_id', $userId)
@@ -2249,14 +2256,28 @@ class CustomerController extends Controller
             ->first();
 
         $currentInCart = $existingCartItem ? $existingCartItem->quantity : 0;
+        $newTotalQty = $currentInCart + $qtyToAdd;
 
-        if (($currentInCart + $qtyToAdd) > $product->quantity) {
+        if ($newTotalQty > $product->quantity) {
             return redirect()->route('customer.product.view', $id)
                 ->with('error', "Cannot add more. You already have {$currentInCart} in cart and total stock is {$product->quantity}.");
         }
 
-        // Proceed to add to cart action
-        return redirect()->route('customer.cart.add', ['id' => $id, 'qty' => $qtyToAdd]);
+        // Perform the insert or update directly here instead of redirecting to a POST route
+        if ($existingCartItem) {
+            $existingCartItem->update([
+                'quantity' => $newTotalQty
+            ]);
+        } else {
+            Cart::create([
+                'customer_id' => $userId,
+                'product_id' => $id,
+                'quantity' => $qtyToAdd,
+            ]);
+        }
+
+        // Redirect safely to a GET route (like store or cart)
+        return redirect()->back()->with('success', "{$product->product_name} added to cart!");
     }
 
     

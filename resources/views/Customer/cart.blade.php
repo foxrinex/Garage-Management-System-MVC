@@ -125,9 +125,9 @@
 
                     <h4 class="mb-3">Total: <span class="text-success">${{ number_format($grandTotal, 2) }}</span></h4>
                     
-                    <a href="{{ route('customer.checkout') }}" 
-                       class="btn btn-success btn-lg px-5 {{ !$canPlaceOrder ? 'disabled' : '' }}">
-                        Confirm Purchase <i class="fa fa-check"></i>
+                    <a href="{{ route('customer.checkout.review') }}" 
+                        class="btn btn-success btn-lg px-5 {{ !$canPlaceOrder ? 'disabled' : '' }}">
+                        Proceed to Checkout <i class="fa fa-arrow-right"></i>
                     </a>
                 </div>
                 @endif
