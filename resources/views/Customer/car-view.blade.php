@@ -28,9 +28,16 @@
             </div>
         @endif
 
+        @if (session('error'))
+            <div class="alert alert-danger alert-dismissible fade show shadow-sm border-0 mb-4">
+                <i class="fa fa-times-circle me-2"></i> {{ session('error') }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        @endif
+
         <div class="row g-5">
             <div class="col-lg-7">
-                <img src="{{ asset('uploads/' . $car->image) }}" class="car-main-img mb-4">
+                <img src="{{ asset('uploads/' . $car->image) }}" class="car-main-img mb-4" onerror="this.src='https://via.placeholder.com/700x400?text=Vehicle+Image'">
                 
                 <div class="card border-0 shadow-sm p-4 mb-4" style="border-radius: 15px;">
                     <h4 class="fw-bold mb-3">Description</h4>
@@ -102,7 +109,7 @@
                             <div class="d-flex gap-2">
                                 <button type="submit" class="btn btn-dark px-4">{{ $myReview ? 'Update' : 'Submit' }}</button>
                                 @if ($myReview)
-                                    <a href="{{ route('customer.review.delete', ['review_id' => $myReview->id, 'car_id' => $carId]) }}" 
+                                    <a href="{{ route('customer.review.post', ['action' => 'delete', 'review_id' => $myReview->id, 'car_id' => $carId]) }}" 
                                        class="btn btn-outline-danger" onclick="return confirm('Delete permanently?')">Delete</a>
                                 @endif
                             </div>

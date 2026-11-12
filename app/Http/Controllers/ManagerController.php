@@ -860,7 +860,7 @@ class ManagerController extends Controller
 
         // Validation: Ensure reply isn't empty
         if (empty($replyText)) {
-            return redirect()->route('car.view', ['id' => $carId])->with('error', 'Reply cannot be empty');
+            return redirect()->route('manager.car.view', ['id' => $carId])->with('error', 'Reply cannot be empty');
         }
 
         // 2. Find and update the review with the company reply
@@ -873,13 +873,13 @@ class ManagerController extends Controller
 
             if ($updated) {
                 // SUCCESS: Redirect back to the manager's car view with a success message
-                return redirect()->route('car.view', ['id' => $carId])->with('success', 'Reply posted successfully!');
+                return redirect()->route('manager.car.view', ['id' => $carId])->with('success', 'Reply posted successfully!');
             } else {
                 // FAILURE: Redirect back with error
-                return redirect()->route('car.view', ['id' => $carId])->with('error', 'Database error occurred');
+                return redirect()->route('manager.car.view', ['id' => $carId])->with('error', 'Database error occurred');
             }
         } else {
-            return redirect()->route('car.view', ['id' => $carId])->with('error', 'Review not found');
+            return redirect()->route('manager.car.view', ['id' => $carId])->with('error', 'Review not found');
         }
     }
 
@@ -1490,31 +1490,29 @@ class ManagerController extends Controller
         }
 
         if (!$request->has('repair_id') || !$request->has('action')) {
-            return redirect()->route('repair.house');
+            return redirect()->route('manager.repair-house');
         }
 
         $repairId = $request->input('repair_id');
         $action = $request->input('action');
 
         try {
-            return DB::transaction(function () use ($request, $repairId, $action) {
+            DB::transaction(function () use ($request, $repairId, $action) {
                 // Fetch repair record with row-level locking
                 $repair = CarRepair::where('repair_id', $repairId)->lockForUpdate()->first();
 
                 if (!$repair) {
-                    return redirect()->route('repair.house')->with('error', 'Repair request not found.');
+                    throw new \Exception('Repair request not found.');
                 }
 
                 // --- ACTION: ACCEPT ---
                 if ($action === 'accept') {
                     $repair->update(['status' => 'Inspecting']);
-                    return redirect()->route('repair.edit.form', ['id' => $repairId])->with('success', 'Request Accepted');
                 }
 
                 // --- ACTION: REJECT (INITIAL REQUEST) ---
                 elseif ($action === 'reject') {
                     $repair->update(['status' => 'Rejected']);
-                    return redirect()->route('repair.house')->with('success', 'Request Rejected');
                 }
 
                 // --- ACTION: SEND INVOICE ---
@@ -1527,21 +1525,14 @@ class ManagerController extends Controller
                     if ($request->has('parts')) {
                         $selectedParts = $request->input('parts');
 
-                        // Remove old selections first and restore stock if necessary, or simply clear
+                        // Remove old selections first
                         RepairPartsSelected::where('repair_id', $repairId)->delete();
 
-                        for ($i = 0; $i < count($selectedParts); $i = $i + 1) {
-                            $productId = $selectedParts[$i];
-
+                        foreach ($selectedParts as $productId) {
                             if (!empty($productId)) {
                                 $product = Product::with('category')->where('id', $productId)->lockForUpdate()->first();
 
                                 if ($product) {
-                                    $pName = $product->product_name;
-                                    $pImg = $product->image;
-                                    $pCat = $product->category ? $product->category->category_name : '';
-                                    $pPrice = $product->price;
-
                                     // Deduct from stock with row locking
                                     $product->update([
                                         'quantity' => $product->quantity - 1,
@@ -1551,10 +1542,10 @@ class ManagerController extends Controller
                                     RepairPartsSelected::create([
                                         'repair_id' => $repairId,
                                         'product_id' => $productId,
-                                        'product_name' => $pName,
-                                        'product_image' => $pImg,
-                                        'category_name' => $pCat,
-                                        'price_at_time' => $pPrice,
+                                        'product_name' => $product->product_name,
+                                        'product_image' => $product->image,
+                                        'category_name' => $product->category ? $product->category->category_name : '',
+                                        'price_at_time' => $product->price,
                                     ]);
                                 }
                             }
@@ -1567,8 +1558,6 @@ class ManagerController extends Controller
                         'labor_fee' => $laborFee,
                         'parts_total' => $partsTotal,
                     ]);
-
-                    return redirect()->route('repair.edit.form', ['id' => $repairId])->with('success', 'Invoice Sent');
                 }
 
                 // --- ACTION: SET READY ---
@@ -1578,34 +1567,24 @@ class ManagerController extends Controller
                         'status' => 'Ready',
                         'repair_notes' => $repairNotes,
                     ]);
-
-                    return redirect()->route('repair.edit.form', ['id' => $repairId])->with('success', 'Job Marked Ready');
                 }
 
                 // --- ACTION: FINALIZE ---
                 elseif ($action === 'finalize') {
                     $repair->update(['status' => 'Completed']);
-                    return redirect()->route('repair.edit.form', ['id' => $repairId])->with('success', 'Job Completed');
                 }
 
                 // --- ACTION: CANCEL/REJECT MID-PROCESS ---
                 elseif ($action === 'cancel_repair') {
                     $currentStatus = $repair->status;
                     $allowedToCancel = ['Pending', 'Inspecting', 'Awaiting Payment'];
-                    $isAllowed = false;
-
-                    for ($k = 0; $k < count($allowedToCancel); $k = $k + 1) {
-                        if ($currentStatus === $allowedToCancel[$k]) {
-                            $isAllowed = true;
-                        }
-                    }
+                    $isAllowed = in_array($currentStatus, $allowedToCancel);
 
                     if ($isAllowed) {
                         $partsToReturn = RepairPartsSelected::where('repair_id', $repairId)->get();
 
-                        for ($i = 0; $i < count($partsToReturn); $i = $i + 1) {
-                            $pId = $partsToReturn[$i]->product_id;
-                            $product = Product::where('id', $pId)->lockForUpdate()->first();
+                        foreach ($partsToReturn as $part) {
+                            $product = Product::where('id', $part->product_id)->lockForUpdate()->first();
 
                             if ($product) {
                                 $product->update([
@@ -1616,18 +1595,33 @@ class ManagerController extends Controller
 
                         RepairPartsSelected::where('repair_id', $repairId)->delete();
                         $repair->update(['status' => 'Rejected']);
-
-                        return redirect()->route('repair.house')->with('success', 'Repair has been rejected');
                     } else {
-                        return redirect()->route('repair.edit.form', ['id' => $repairId])->with('error', 'Cannot reject job in current status');
+                        throw new \Exception('Cannot reject job in current status');
                     }
                 }
-
-                return redirect()->route('repair.house');
             });
 
+            // --- SAFE REDIRECTS OUTSIDE TRANSACTION ---
+            if ($action === 'accept') {
+                return redirect()->route('manager.repair.edit', ['id' => $repairId])->with('success', 'Request Accepted');
+            }
+            elseif ($action === 'reject' || $action === 'cancel_repair') {
+                return redirect()->route('manager.repair-house')->with('success', 'Request/Repair has been rejected');
+            }
+            elseif ($action === 'request_payment') {
+                return redirect()->route('manager.repair.edit', ['id' => $repairId])->with('success', 'Invoice Sent');
+            }
+            elseif ($action === 'set_ready') {
+                return redirect()->route('manager.repair.edit', ['id' => $repairId])->with('success', 'Job Marked Ready');
+            }
+            elseif ($action === 'finalize') {
+                return redirect()->route('manager.repair.edit', ['id' => $repairId])->with('success', 'Job Completed');
+            }
+
+            return redirect()->route('manager.repair-house');
+
         } catch (\Exception $e) {
-            return redirect()->route('repair.house')->with('error', 'An error occurred while updating the repair.');
+            return redirect()->route('manager.repair.edit', ['id' => $repairId])->with('error', $e->getMessage() ?: 'An error occurred while updating the repair.');
         }
     }
 
@@ -1728,7 +1722,7 @@ class ManagerController extends Controller
         }
     }
 
-    public function updateWarrantyStatus(Request $request, $id)
+    public function updateWarrantyStatus(Request $request, $id, $status)
     {
         $userId = session('user_id');
         $role = session('role');
@@ -1738,11 +1732,9 @@ class ManagerController extends Controller
             return redirect()->route('login');
         }
 
-        if (!$request->has('status')) {
-            return redirect()->route('warranty.manage');
+        if (!in_array($status, ['Approved', 'Rejected'])) {
+            return redirect()->route('manager.warranties')->with('error', 'Invalid status.');
         }
-
-        $status = $request->input('status');
 
         try {
             return DB::transaction(function () use ($id, $status) {
@@ -1750,22 +1742,18 @@ class ManagerController extends Controller
                 $claim = WarrantyClaim::where('id', $id)->lockForUpdate()->first();
 
                 if (!$claim) {
-                    return redirect()->route('warranty.manage')->with('error', 'Warranty claim not found');
+                    return redirect()->route('manager.warranties')->with('error', 'Warranty claim not found.');
                 }
 
-                $updated = $claim->update([
+                $claim->update([
                     'status' => $status,
                 ]);
 
-                if ($updated) {
-                    return redirect()->route('warranty.manage')->with('success', "Claim updated to $status");
-                } else {
-                    return redirect()->route('warranty.manage')->with('error', 'Error occurred');
-                }
+                return redirect()->route('manager.warranties')->with('success', "Claim updated to $status");
             });
 
         } catch (\Exception $e) {
-            return redirect()->route('warranty.manage')->with('error', 'An error occurred while updating the warranty claim.');
+            return redirect()->route('manager.warranties')->with('error', 'An error occurred while updating the warranty claim.');
         }
     }
 
@@ -2357,7 +2345,7 @@ public function restock(Request $request)
         }
 
         // Fetch currently saved parts
-        $savedPartsResults = RepairPartSelected::where('repair_id', $id)->get();
+        $savedPartsResults = RepairPartsSelected::where('repair_id', $id)->get();
         $savedPartIds = [];
         for ($i = 0; $i < count($savedPartsResults); $i = $i + 1) {
             $savedPartIds[] = $savedPartsResults[$i]->product_id;
@@ -2790,5 +2778,16 @@ public function restock(Request $request)
         $employeeCount = $staff->count();
 
         return view('manager.employees', compact('staff', 'employeeCount', 'search'));
+    }
+    public function deleteProductReviewReply($id)
+    {
+        $review = Review::findOrFail($id);
+        $productId = $review->product_id;
+
+        $review->update([
+            'company_reply' => null
+        ]);
+
+        return redirect()->route('manager.inventory.reviews', $productId)->with('success', 'Company response removed');
     }
 }

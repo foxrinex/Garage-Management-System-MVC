@@ -57,10 +57,17 @@
                                     <div id="reply-display-{{ $r->id }}" class="bg-light p-3 border-start border-primary border-4">
                                         <strong>Company Reply:</strong>
                                         <p class="mb-2">{{ $r->company_reply }}</p>
-                                        <button class="btn btn-sm btn-link p-0 text-decoration-none" 
-                                                onclick="toggleEditReply({{ $r->id }})">
-                                            <i class="fa fa-pencil"></i> Edit Reply
-                                        </button>
+                                        <div class="d-flex gap-2">
+                                            <button class="btn btn-sm btn-outline-primary" 
+                                                    onclick="toggleEditReply({{ $r->id }})">
+                                                <i class="fa fa-pencil"></i> Edit Reply
+                                            </button>
+                                            <a href="{{ route('manager.product.review.reply.delete', $r->id) }}" 
+                                               class="btn btn-sm btn-outline-danger" 
+                                               onclick="return confirm('Are you sure you want to delete this company response?')">
+                                                <i class="fa fa-trash"></i> Delete Response
+                                            </a>
+                                        </div>
                                     </div>
 
                                     <div id="reply-edit-{{ $r->id }}" style="display: none;" class="bg-white p-3 border rounded shadow-sm">

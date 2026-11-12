@@ -23,4 +23,9 @@ class CarRepair extends Model
         'labor_fee',
         'parts_total',
     ];
+    public function customer()
+    {
+        // Adjust 'user_id' if your foreign key column has a different name (e.g., 'customer_id')
+        return $this->belongsTo(User::class, 'user_id'); 
+    }
 }

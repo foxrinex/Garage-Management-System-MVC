@@ -25,7 +25,7 @@
     @include('manager.inc.navbar')
 
     <div class="container mt-5 mb-5">
-        <a href="#" class="btn btn-sm btn-secondary mb-3">
+        <a href="{{ route('manager.repair-house') }}" class="btn btn-sm btn-secondary mb-3">
             <i class="fa fa-arrow-left me-2"></i>Back to Workshop
         </a>
         

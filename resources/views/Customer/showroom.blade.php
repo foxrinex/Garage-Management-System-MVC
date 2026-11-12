@@ -49,7 +49,7 @@
         <div class="row">
             <div class="col-md-3">
                 <div class="filter-section shadow-sm mb-4">
-                    <form action="{{ route('customer.showroom') }}" method="GET">
+                    <form id="filterForm" action="{{ route('customer.showroom') }}" method="GET">
                         
                         <h6 class="fw-bold mb-3">Search</h6>
                         <div class="input-group mb-4">
@@ -83,16 +83,16 @@
                         <div class="mb-3">
                             <label class="small text-muted">Price Range ($0 - $1B)</label>
                             <div class="input-group">
-                                <input type="number" name="min_price" class="form-control" placeholder="Min" min="0" max="1000000000" value="{{ request('min_price') }}">
-                                <input type="number" name="max_price" class="form-control" placeholder="Max" min="0" max="1000000000" value="{{ request('max_price') }}">
+                                <input type="number" id="min_price" name="min_price" class="form-control" placeholder="Min" min="0" max="1000000000" value="{{ request('min_price') }}">
+                                <input type="number" id="max_price" name="max_price" class="form-control" placeholder="Max" min="0" max="1000000000" value="{{ request('max_price') }}">
                             </div>
                         </div>
 
                         <div class="mb-3">
                             <label class="small text-muted">Year Range (1900 - {{ $currentSystemYear }})</label>
                             <div class="input-group">
-                                <input type="number" name="min_year" class="form-control" placeholder="From" min="1900" max="{{ $currentSystemYear }}" value="{{ request('min_year') }}">
-                                <input type="number" name="max_year" class="form-control" placeholder="To" min="1900" max="{{ $currentSystemYear }}" value="{{ request('max_year') }}">
+                                <input type="number" id="min_year" name="min_year" class="form-control" placeholder="From" min="1900" max="{{ $currentSystemYear }}" value="{{ request('min_year') }}">
+                                <input type="number" id="max_year" name="max_year" class="form-control" placeholder="To" min="1900" max="{{ $currentSystemYear }}" value="{{ request('max_year') }}">
                             </div>
                         </div>
 
@@ -170,8 +170,7 @@
                                             @endif
 
                                             @if ($car->status == 'In Stock' && $car->quantity > 0)
-                                                <form action="{{ route('customer.car.transaction') }}" method="GET" class="d-grid">
-                                                    <input type="hidden" name="id" value="{{ $car->id }}">
+                                                <form action="{{ route('customer.car.transaction', $car->id) }}" method="GET" class="d-grid">
                                                     <button type="submit" class="btn btn-success btn-sm fw-bold">
                                                         <i class="fa fa-shopping-cart"></i> Purchase Now
                                                     </button>
@@ -209,5 +208,40 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Prevent min values from exceeding max values on input and form submission
+        document.getElementById('filterForm').addEventListener('submit', function(e) {
+            const minPrice = parseFloat(document.getElementById('min_price').value);
+            const maxPrice = parseFloat(document.getElementById('max_price').value);
+            if (!isNaN(minPrice) && !isNaN(maxPrice) && minPrice > maxPrice) {
+                alert('Minimum price cannot be greater than maximum price.');
+                e.preventDefault();
+                return;
+            }
+
+            const minYear = parseInt(document.getElementById('min_year').value);
+            const maxYear = parseInt(document.getElementById('max_year').value);
+            if (!isNaN(minYear) && !isNaN(maxYear) && minYear > maxYear) {
+                alert('Minimum year cannot be greater than maximum year.');
+                e.preventDefault();
+                return;
+            }
+        });
+
+        // Dynamic constraint attributes syncing
+        document.getElementById('min_price').addEventListener('input', function() {
+            document.getElementById('max_price').min = this.value;
+        });
+        document.getElementById('max_price').addEventListener('input', function() {
+            document.getElementById('min_price').max = this.value;
+        });
+
+        document.getElementById('min_year').addEventListener('input', function() {
+            document.getElementById('max_year').min = this.value;
+        });
+        document.getElementById('max_year').addEventListener('input', function() {
+            document.getElementById('min_year').max = this.value;
+        });
+    </script>
 </body>
 </html>

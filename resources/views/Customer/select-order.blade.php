@@ -48,7 +48,7 @@
                                         <span class="badge bg-secondary">Claim Already Filed</span>
                                     </div>
                                 @else
-                                    <a href="{{ route('customer.claim.warranty', $claimParams) }}" 
+                                    <a href="{{ route('customer.warranty.claim.form', $claimParams) }}" 
                                        class="list-group-item list-group-item-action d-flex justify-content-between align-items-center py-3">
                                         <div>
                                             <span class="fw-bold">Order #{{ $order->id }}</span><br>

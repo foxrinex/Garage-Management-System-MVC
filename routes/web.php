@@ -28,7 +28,6 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/customer/change-password', [CustomerController::class, 'changePassword'])->name('customer.password.update');
     Route::post('/customer/checkout', [CustomerController::class, 'checkout'])->name('customer.checkout');
     Route::get('/customer/delete-build/{id}', [CustomerController::class, 'deleteBuild'])->name('customer.build.delete');
-    Route::post('/customer/edit-review', [CustomerController::class, 'editReview'])->name('customer.review.update');
     Route::post('/customer/place-order', [CustomerController::class, 'placeOrder'])->name('customer.order.place');
     Route::match(['get', 'post'], '/customer/post-review', [CustomerController::class, 'postReview'])->name('customer.review.post');
     Route::post('/customer/profile/edit', [CustomerController::class, 'updateProfile'])->name('customer.profile.update');
@@ -37,7 +36,6 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/customer/repair-add', [CustomerController::class, 'storeRepairRequest'])->name('customer.repair.store');
     Route::get('/customer/repair-cancel/{id}', [CustomerController::class, 'cancelRepairRequest'])->name('customer.repair.cancel');
     Route::get('/customer/repair-decline-parts/{id}', [CustomerController::class, 'declineRepairParts'])->name('customer.repair.decline.parts');
-    Route::get('/customer/my-reviews/delete/{id}', [CustomerController::class, 'deleteMyReview'])->name('customer.review.delete.my');
     Route::post('/customer/send-message', [CustomerController::class, 'sendMessage'])->name('customer.support.send');
     Route::post('/customer/submit-warranty', [CustomerController::class, 'submitWarrantyClaim'])->name('customer.warranty.submit');
     Route::get('/customer/wishlist-handle/{id}', [CustomerController::class, 'wishlistHandle'])->name('customer.wishlist.handle');
@@ -99,6 +97,7 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/employee/repair-update', [EmployeeController::class, 'handleRepairAction'])->name('employee.repair.action');
     Route::post('/employee/reply-review', [EmployeeController::class, 'replyToProductReview'])->name('employee.review.reply');
     Route::get('/employee/warranty-status/{id}', [EmployeeController::class, 'updateWarrantyStatus'])->name('employee.warranty.status');
+    
 
 
 
@@ -161,7 +160,8 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/manager/car-edit/{id}/category-update', [ManagerController::class, 'updateCategoryFromEdit'])->name('manager.car.category.update');
     Route::get('/manager/car-edit/{id}/category-delete/{catId}', [ManagerController::class, 'deleteCategoryFromEdit'])->name('manager.car.category.delete');
     Route::get('/manager/car-view/{id}', [ManagerController::class, 'carView'])->name('manager.car.view');
-    Route::get('/manager/car-review-reply-delete/{id}', [ManagerController::class, 'deleteReviewReply'])->name('manager.car.review.reply.delete');
+    Route::get('/manager/car-review-reply-delete/{id}', [ManagerController::class, 'deleteCarReviewReply'])->name('manager.car.review.reply.delete');
+    Route::get('/manager/product-review-reply-delete/{id}', [ManagerController::class, 'deleteProductReviewReply'])->name('manager.product.review.reply.delete');
     Route::get('/manager/dashboard', [ManagerController::class, 'dashboardIndex'])->name('manager.dashboard');
     Route::get('/manager/inventory', [ManagerController::class, 'inventoryIndex'])->name('manager.inventory');
     Route::post('/manager/builder/settings', [ManagerController::class, 'handleBuilderSettingsPost'])->name('manager.builder.settings');

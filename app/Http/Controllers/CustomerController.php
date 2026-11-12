@@ -526,14 +526,14 @@ class CustomerController extends Controller
                         'status' => $newStatus,
                     ]);
 
-                    return redirect()->route('showroom')->with('success', 'Congratulations! Your vehicle purchase is complete.');
+                    return redirect()->route('customer.showroom')->with('success', 'Congratulations! Your vehicle purchase is complete.');
                 } else {
-                    return redirect()->route('showroom')->with('error', 'Sorry, this vehicle just sold out.');
+                    return redirect()->route('customer.showroom')->with('error', 'Sorry, this vehicle just sold out.');
                 }
             });
 
         } catch (\Exception $e) {
-            return redirect()->route('showroom')->with('error', 'An error occurred during the purchase.');
+            return redirect()->route('customer.showroom')->with('error', 'An error occurred during the purchase.');
         }
     }
 
@@ -664,49 +664,6 @@ class CustomerController extends Controller
         }
     }
 
-    public function editReview(Request $request)
-    {
-        $request->validate([
-            'rating' => 'required|integer|min:1|max:5',
-            'comment' => 'required|string',
-            'review_id' => 'required|integer',
-            'product_id' => 'required|integer',
-        ]);
-
-        $userId = session('user_id');
-        $rating = $request->input('rating');
-        $comment = $request->input('comment');
-        $reviewId = $request->input('review_id');
-        $productId = $request->input('product_id');
-
-        if (!$userId) {
-            return redirect()->route('login');
-        }
-
-        // 1. Security check: Ensure this review actually belongs to this user
-        $review = Review::where('id', $reviewId)
-            ->where('user_id', $userId)
-            ->first();
-
-        if (!$review) {
-            return redirect()->route('customer.product.view', ['id' => $productId])
-                ->with('error', 'Unauthorized action');
-        }
-
-        // 2. Update the review
-        $updated = $review->update([
-            'rating' => $rating,
-            'comment' => $comment,
-        ]);
-
-        if ($updated) {
-            return redirect()->route('customer.product.view', ['id' => $productId])
-                ->with('success', 'Review updated successfully!');
-        } else {
-            return redirect()->route('customer.product.view', ['id' => $productId])
-                ->with('error', 'Failed to update review');
-        }
-    }
 
     public function placeOrder(Request $request)
     {
@@ -788,27 +745,19 @@ class CustomerController extends Controller
         $productId = $request->input('product_id', $request->query('product_id'));
         $carId = $request->input('car_id', $request->query('car_id'));
 
-        // Determine default fallback redirect
-        $redirectUrl = route('customer.showroom');
-        if (!empty($productId)) {
-            $redirectUrl = route('customer.product.view', ['id' => $productId]);
-        } elseif (!empty($carId)) {
-            $redirectUrl = route('customer.car.view', ['id' => $carId]);
-        }
-
         try {
             // --- ACTION: DELETE ---
-            if ($action === 'delete' && $request->has('review_id')) {
-                $reviewId = $request->query('review_id');
+            if ($action === 'delete' && ($request->has('review_id') || $request->has('id'))) {
+                $reviewId = $request->input('review_id', $request->query('review_id', $request->query('id')));
 
                 $review = Review::where('id', $reviewId)
                     ->where('user_id', $userId)
                     ->first();
 
                 if ($review && $review->delete()) {
-                    return redirect($redirectUrl)->with('success', 'Review deleted successfully');
+                    return back()->with('success', 'Review deleted successfully');
                 } else {
-                    return redirect($redirectUrl)->with('error', 'Could not delete review');
+                    return back()->with('error', 'Could not delete review');
                 }
             }
 
@@ -832,7 +781,7 @@ class CustomerController extends Controller
                         'date_posted' => Carbon::now()->toDateString(),
                     ]);
 
-                    return redirect($redirectUrl)->with('success', 'Review posted!');
+                    return back()->with('success', 'Review posted!');
                 } 
                 
                 else if ($action === 'update' && $request->has('review_id')) {
@@ -848,18 +797,18 @@ class CustomerController extends Controller
                             'comment' => $comment,
                         ]);
 
-                        return redirect($redirectUrl)->with('success', 'Review updated!');
+                        return back()->with('success', 'Review updated!');
                     } else {
-                        return redirect($redirectUrl)->with('error', 'Unauthorized action');
+                        return back()->with('error', 'Unauthorized action');
                     }
                 }
             }
 
         } catch (\Exception $e) {
-            return redirect($redirectUrl)->with('error', 'An error occurred while processing your review.');
+            return back()->with('error', 'An error occurred while processing your review.');
         }
 
-        return redirect($redirectUrl);
+        return back();
     }
 
     public function updateProfile(Request $request)
@@ -1137,8 +1086,11 @@ class CustomerController extends Controller
             return redirect()->route('login');
         }
 
+        $redirectRoute = 'customer.repair.dashboard'; // default fallback
+        $flashMessage = ['type' => 'success', 'message' => ''];
+
         try {
-            return DB::transaction(function () use ($userId, $id) {
+            DB::transaction(function () use ($userId, $id, &$redirectRoute, &$flashMessage) {
                 // 1. Verify ownership and lock the row to prevent race conditions
                 $repair = CarRepair::where('repair_id', $id)
                     ->where('customer_id', $userId)
@@ -1146,7 +1098,8 @@ class CustomerController extends Controller
                     ->first();
 
                 if (!$repair) {
-                    return redirect()->route('customer.repair.dashboard');
+                    $redirectRoute = 'customer.repair.dashboard';
+                    throw new \Exception('Repair request not found.');
                 }
 
                 if ($repair->status === 'Awaiting Payment') {
@@ -1162,7 +1115,7 @@ class CustomerController extends Controller
                     $partsToRemove = RepairPartsSelected::where('repair_id', $id)->get();
                     $partsCount = count($partsToRemove);
 
-                    for ( $i = 0; $i < $partsCount; $i = $i + 1) {
+                    for ($i = 0; $i < $partsCount; $i = $i + 1) {
                         $pId = $partsToRemove[$i]->product_id;
 
                         // Check and restore stock safely
@@ -1175,16 +1128,25 @@ class CustomerController extends Controller
                     // 5. Delete the snapshots because customer declined the repair parts
                     RepairPartsSelected::where('repair_id', $id)->delete();
 
-                    $sm = "Parts declined. Please pay the $300 diagnostics fee upon pickup.";
-                    return redirect()->route('repair.view', ['id' => $id])->with('success', $sm);
+                    $flashMessage['type'] = 'success';
+                    $flashMessage['message'] = "Parts declined. Please pay the $300 diagnostics fee upon pickup.";
+                    $redirectRoute = 'customer.repair.dashboard';
 
                 } else {
-                    return redirect()->route('repair.view', ['id' => $id])->with('error', 'This repair is not in a payable state.');
+                    $flashMessage['type'] = 'error';
+                    $flashMessage['message'] = 'This repair is not in a payable state.';
+                    $redirectRoute = 'customer.repair.dashboard';
                 }
             });
 
+            // Safe redirect outside the transaction block
+            if ($redirectRoute === 'customer.repair.dashboard') {
+                return redirect()->route($redirectRoute);
+            }
+            return redirect()->route($redirectRoute, ['id' => $id])->with($flashMessage['type'], $flashMessage['message']);
+
         } catch (\Exception $e) {
-            return redirect()->route('repair.view', ['id' => $id])->with('error', 'Error updating repair record.');
+            return redirect()->route('repair.view', ['id' => $id])->with('error', $e->getMessage() ?: 'Error updating repair record.');
         }
     }
 
@@ -1216,31 +1178,6 @@ class CustomerController extends Controller
         } else {
             $em = "An error occurred during status update.";
             return redirect()->route('customer.repair.view', ['id' => $id])->with('error', $em);
-        }
-    }
-    public function deleteMyReview(Request $request, $id)
-    {
-        $userId = session('user_id');
-
-        if (!$userId) {
-            return redirect()->route('login');
-        }
-
-        // Find the review ensuring it belongs to the logged-in customer for security
-        $review = Review::where('id', $id)
-            ->where('user_id', $userId)
-            ->first();
-
-        if ($review) {
-            $deleted = $review->delete();
-
-            if ($deleted) {
-                return redirect()->route('my.reviews')->with('success', 'Review deleted successfully');
-            } else {
-                return redirect()->route('my.reviews')->with('error', 'Delete failed');
-            }
-        } else {
-            return redirect()->route('my.reviews')->with('error', 'Review not found or unauthorized');
         }
     }
 
@@ -1342,7 +1279,7 @@ class CustomerController extends Controller
             $redirectTo = route('customer.product.view', ['id' => $id]);
         } elseif ($source === 'wishlist') {
             $redirectTo = route('customer.wishlist');
-        } elseif ($source === 'showroom') {
+        } elseif ($source === 'customer.showroom') {
             $redirectTo = route('customer.showroom');
         } elseif ($source === 'car-view') {
             $redirectTo = route('customer.car.view', ['id' => $id]);
@@ -1881,7 +1818,7 @@ class CustomerController extends Controller
 
         // Determine the price and purchase target route/action
         $finalPrice = $car->price;
-        $purchaseAction = route('customer.car.purchase.submit'); // Adjust to your Laravel purchase submit route name
+        $purchaseAction = route('customer.car.purchase'); // Adjust to your Laravel purchase submit route name
         $headingText = "Checkout Summary";
 
         if ($isAuction) {

@@ -204,6 +204,23 @@
                             <h4 class="mb-0 fw-bold">${{ number_format($totalBill, 2) }}</h4>
                         </div>
 
+                        <!-- READY FOR PICKUP NOTIFICATION BLOCK -->
+                        @if ($repair->status == 'Ready')
+                            <div class="alert alert-success border-0 rounded-4 mt-4 p-3 shadow-sm">
+                                <div class="d-flex align-items-center mb-2">
+                                    <i class="fa fa-car fa-2x text-success me-3"></i>
+                                    <div>
+                                        <h6 class="fw-bold mb-0 text-success">Ready for Pickup!</h6>
+                                        <small class="text-muted">Your vehicle service is fully completed.</small>
+                                    </div>
+                                </div>
+                                <hr class="my-2">
+                                <p class="small text-secondary mb-2">
+                                    Please visit our garage facility at your earliest convenience to collect your car. Bring your Job ID <strong>#{{ $repair->repair_id }}</strong> for verification.
+                                </p>
+                            </div>
+                        @endif
+
                         @if ($repair->status == 'Awaiting Payment')
                             <div class="mt-4">
                                 <p class="small text-muted mb-3">Please choose your payment option below:</p>
@@ -217,7 +234,7 @@
                                     @if (!empty($repair->repair_type) && $repair->repair_type == 'Repair')
                                         <hr>
                                         <p class="text-center x-small text-danger fw-bold mb-1" style="font-size: 10px;">DON'T WANT THE PARTS?</p>
-                                        <a href="#" class="btn btn-outline-secondary btn-sm fw-bold">
+                                        <a href="{{ route('customer.repair.decline.parts', ['id' => $repair->repair_id]) }}" class="btn btn-outline-secondary btn-sm fw-bold">
                                             Pay Diagnostics Fee Only
                                         </a>
                                     @endif

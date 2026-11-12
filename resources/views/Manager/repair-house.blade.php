@@ -56,7 +56,7 @@
                 <p class="text-muted small">Manage lifecycle from Booking to Customer Pickup</p>
             </div>
             <div>
-                <a href="#" class="btn btn-outline-dark px-4 py-2 fw-bold me-2">
+                <a href="{{ route('manager.dashboard') }}" class="btn btn-outline-dark px-4 py-2 fw-bold me-2">
                     <i class="fa fa-chevron-left me-2"></i>Back to Dashboard
                 </a>
                 <button class="btn btn-dark px-4 py-2 fw-bold" onclick="window.location.reload();">

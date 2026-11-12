@@ -109,12 +109,20 @@
                                     <span class="badge {{ $badgeC }}">{{ $cc->status }}</span>
                                 </td>
                                 <td>
-                                    @if ($cc->status == 'Pending')
-                                        <a href="{{ route('manager.warranties.status', ['id' => $cc->id, 'status' => 'Approved']) }}" class="btn btn-sm btn-success">Approve</a>
-                                        <a href="{{ route('manager.warranties.status', ['id' => $cc->id, 'status' => 'Rejected']) }}" class="btn btn-sm btn-danger">Reject</a>
-                                    @else
-                                        <span class="text-muted small">Processed</span>
-                                    @endif
+                                    @if ($c->status == 'Pending')
+                                    <form action="{{ route('manager.warranties.status', $c->id) }}" method="POST" class="d-inline">
+                                        @csrf
+                                        <input type="hidden" name="status" value="Approved">
+                                        <button type="submit" class="btn btn-sm btn-success">Approve</button>
+                                    </form>
+                                    <form action="{{ route('manager.warranties.status', $c->id) }}" method="POST" class="d-inline">
+                                        @csrf
+                                        <input type="hidden" name="status" value="Rejected">
+                                        <button type="submit" class="btn btn-sm btn-danger">Reject</button>
+                                    </form>
+                                @else
+                                    <span class="text-muted small">Processed</span>
+                                @endif
                                 </td>
                             </tr>
                         @endfor

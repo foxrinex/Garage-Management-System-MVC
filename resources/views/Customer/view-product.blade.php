@@ -16,6 +16,7 @@
         .review-item:hover { background-color: #f8f9fa !important; }
         .company-reply { border-left: 4px solid #0d6efd; background: #f0f7ff; border-radius: 0 10px 10px 0; }
         .qty-input { border-radius: 10px 0 0 10px !important; max-width: 80px; text-align: center; }
+        .warranty-box { background-color: #f8f9fa; border: 1px solid #e9ecef; border-radius: 15px; }
     </style>
 </head>
 <body class="bg-light">
@@ -62,7 +63,7 @@
                         
                         <h1 class="fw-bold mb-2">{{ $product->product_name }}</h1>
                         
-                        <div class="mb-4">
+                        <div class="mb-3">
                             @php
                                 $p_tags = explode(", ", $product->tags);
                             @endphp
@@ -76,7 +77,47 @@
                             @endif
                         </div>
 
-                        <div class="price-text mb-4">${{ number_format($product->price, 2) }}</div>
+                        <div class="price-text mb-3">${{ number_format($product->price, 2) }}</div>
+
+                        <!-- Available Warranties Section -->
+                        @php
+                            $warrantyType = strtolower($product->warranty_type ?? $product->warranty ?? '');
+                            $hasRegular = ($product->regular_warranty ?? false) || str_contains($warrantyType, 'regular') || $warrantyType === 'both';
+                            $hasReplacement = ($product->replacement_warranty ?? false) || str_contains($warrantyType, 'replacement') || $warrantyType === 'both';
+                        @endphp
+
+                        <div class="warranty-box p-3 mb-4">
+                            <div class="d-flex align-items-center mb-2">
+                                <i class="fa fa-shield text-warning fa-lg me-2"></i>
+                                <span class="fw-bold text-dark">Warranty Coverage</span>
+                            </div>
+
+                            @if ($hasRegular || $hasReplacement)
+                                <div class="d-flex flex-wrap gap-2">
+                                    @if ($hasRegular)
+                                        <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-3 py-2 rounded-pill">
+                                            <i class="fa fa-wrench me-1"></i> Regular Warranty (Repair & Service)
+                                        </span>
+                                    @endif
+
+                                    @if ($hasReplacement)
+                                        <span class="badge bg-success-subtle text-success border border-success-subtle px-3 py-2 rounded-pill">
+                                            <i class="fa fa-refresh me-1"></i> Replacement Warranty (1-to-1 Exchange)
+                                        </span>
+                                    @endif
+                                </div>
+                                @if (!empty($product->warranty_duration))
+                                    <small class="text-muted d-block mt-2">
+                                        Coverage Period: <strong>{{ $product->warranty_duration }}</strong>
+                                    </small>
+                                @endif
+                            @else
+                                <small class="text-muted">
+                                    <i class="fa fa-info-circle me-1"></i> Standard store return policy applies. No extended warranty listed for this item.
+                                </small>
+                            @endif
+                        </div>
+                        <!-- End Available Warranties Section -->
 
                         <div class="actions">
                             @if (session('role') == 'Customer')
@@ -96,7 +137,7 @@
                                        <i class="fa {{ $wish_icon }} me-2"></i> {{ $wish_text }}
                                     </a>
 
-                                    @elseif ($product->status == 'In Stock' && $product->quantity > 0)
+                                @elseif ($product->status == 'In Stock' && $product->quantity > 0)
                                     <form action="{{ route('customer.cart.add') }}" method="POST">
                                         @csrf
                                         <input type="hidden" name="id" value="{{ $product->id }}">
@@ -126,7 +167,7 @@
 
                                     @if ($canReview)
                                         <div class="mt-4 pt-4 border-top">
-                                            <a href="{{ route('customer.warranty.claim.form', ['product_id' => $product->id]) }}" class="btn btn-warning w-100 py-2 rounded-pill fw-bold">
+                                            <a href="{{ route('customer.warranty.select.order', ['product_id' => $product->id]) }}" class="btn btn-warning w-100 py-2 rounded-pill fw-bold">
                                                 <i class="fa fa-shield me-2"></i> Claim Warranty
                                             </a>
                                         </div>
