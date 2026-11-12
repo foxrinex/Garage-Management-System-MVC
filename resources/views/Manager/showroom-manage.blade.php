@@ -334,7 +334,7 @@
                                                 @endif
                                             </div>
                                             <!-- Manage Reviews Button -->
-                                            <a href="{{ route('manager.inventory.reviews', $car->id) }}" class="btn btn-sm btn-light border w-100">
+                                            <a href="{{ route('manager.car.view', $car->id) }}" class="btn btn-sm btn-light border w-100">
                                                 <i class="fa fa-comments"></i> Manage Reviews
                                             </a>
                                         </div>

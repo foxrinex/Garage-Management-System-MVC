@@ -114,7 +114,6 @@
                                 <option value="">All Statuses</option>
                                 <option value="Active" {{ request('status_filter') == 'Active' ? 'selected' : '' }}>Active</option>
                                 <option value="Closed" {{ request('status_filter') == 'Closed' ? 'selected' : '' }}>Closed</option>
-                                <option value="Sold" {{ request('status_filter') == 'Sold' ? 'selected' : '' }}>Sold</option>
                                 <option value="Failed" {{ request('status_filter') == 'Failed' ? 'selected' : '' }}>Failed</option>
                            </select>
                         </div>
@@ -125,6 +124,9 @@
                                 <option value="">Transmission</option>
                                 <option value="Automatic" {{ request('transmission') == 'Automatic' ? 'selected' : '' }}>Automatic</option>
                                 <option value="Manual" {{ request('transmission') == 'Manual' ? 'selected' : '' }}>Manual</option>
+                                <option value="CVT" {{ request('transmission') == 'CVT' ? 'selected' : '' }}>CVT</option>
+                                <option value="DCT" {{ request('transmission') == 'DCT' ? 'selected' : '' }}>DCT</option>
+                                <option value="AMT" {{ request('transmission') == 'AMT' ? 'selected' : '' }}>AMT</option>
                             </select>
                         </div>
                         <div class="mb-4">
@@ -209,7 +211,7 @@
                                             <i class="fa fa-trash fa-3x"></i>
                                         </div>
                                     @else
-                                        <a href="{{ route('manager.showroom', $a->car->id) }}">
+                                        <a href="{{ route('manager.car.view', $a->car->id) }}">
                                             <img src="{{ asset('uploads/' . $a->car->image) }}" class="car-img-top" onerror="this.src='https://via.placeholder.com/300x180?text=No+Image'">
                                         </a>
                                     @endif
@@ -227,7 +229,7 @@
                                         @if ($isCarDeleted)
                                             <h5 class="card-title fw-bold mb-2 text-muted">Stock Record Removed</h5>
                                         @else
-                                            <a href="{{ route('manager.showroom', $a->car->id) }}" class="clickable-card-link">
+                                            <a href="{{ route('manager.car.view', $a->car->id) }}" class="clickable-card-link">
                                                 <h5 class="card-title fw-bold mb-2">{{ $a->car->year . " " . $a->car->model }}</h5>
                                             </a>
                                         @endif
@@ -259,7 +261,7 @@
 
                                     <div class="card-footer bg-transparent border-0 pb-3">
                                         <div class="d-flex flex-column gap-2">
-                                            <a href="#" class="btn btn-sm btn-outline-primary w-100">
+                                            <a href="{{ route('manager.auction.bids', ['auction_id' => $a->id]) }}" class="btn btn-sm btn-outline-primary w-100">
                                                 <i class="fa fa-list"></i> View Bid History
                                             </a>
                                             @if ($a->status == 'Active')

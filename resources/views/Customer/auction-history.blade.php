@@ -69,7 +69,7 @@
                                         <div class="d-flex align-items-center">
                                             <img src="{{ asset('uploads/' . $row['image']) }}" class="img-auc border shadow-sm me-3">
                                             <div>
-                                                <a href="{{ route('customer.auction.details', $aid) }}" class="text-decoration-none text-dark fw-bold">
+                                                <a href="{{ route('customer.auction.view', $aid) }}" class="text-decoration-none text-dark fw-bold">
                                                     {{ $row['brand'] }} {{ $row['model'] }}
                                                 </a>
                                                 <div class="text-muted small">{{ $row['year'] }} Model</div>

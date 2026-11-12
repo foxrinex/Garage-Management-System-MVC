@@ -10,6 +10,7 @@ use App\Models\Product;
 use App\Models\Cart;
 use App\Models\Auction;
 use App\Models\AuctionBid;
+use App\Models\AuctionSale;
 use Carbon\Carbon;
 use App\Models\Car;
 use App\Models\BuilderTemporary;
@@ -29,7 +30,6 @@ use App\Models\WarrantyClaim;
 use App\Models\Category;
 use App\Models\Setting;
 use App\Models\Tag;
-
 
 
 
@@ -167,17 +167,17 @@ class CustomerController extends Controller
                 }
 
                 if ($auction->status != 'Active' || Carbon::parse($auction->end_time)->lt($now)) {
-                    return redirect()->route('auction.view', ['id' => $auctionId])
+                    return redirect()->route('customer.auction.view', ['id' => $auctionId])
                         ->with('error', 'This auction is no longer active.');
                 }
 
                 if ($bidAmount < $minRequired) {
-                    return redirect()->route('auction.view', ['id' => $auctionId])
+                    return redirect()->route('customer.auction.view', ['id' => $auctionId])
                         ->with('error', "Bid too low. Minimum is $$minRequired.");
                 }
 
                 if ($auction->highest_bidder_id == $customerId) {
-                    return redirect()->route('auction.view', ['id' => $auctionId])
+                    return redirect()->route('customer.auction.view', ['id' => $auctionId])
                         ->with('error', 'You are already the highest bidder.');
                 }
 
@@ -193,74 +193,13 @@ class CustomerController extends Controller
                     'bid_amount' => $bidAmount,
                 ]);
 
-                return redirect()->route('auction.view', ['id' => $auctionId])
+                return redirect()->route('customer.auction.view', ['id' => $auctionId])
                     ->with('success', 'Bid placed successfully!');
             });
 
         } catch (\Exception $e) {
-            return redirect()->route('auction.view', ['id' => $auctionId])
+            return redirect()->route('customer.auction.view', ['id' => $auctionId])
                 ->with('error', $e->getMessage());
-        }
-    }
-
-
-    public function auctionPurchase(Request $request)
-    {
-        $request->validate([
-            'car_id' => 'required|integer',
-            'auction_id' => 'required|integer',
-            'price' => 'required|numeric',
-        ]);
-
-        $customerId = session('user_id'); // Matches session storage
-        $carId = $request->input('car_id');
-        $auctionId = $request->input('auction_id');
-        $price = $request->input('price');
-
-        try {
-            return DB::transaction(function () use ($customerId, $carId, $auctionId, $price) {
-                // 1. Fetch current auction and lock row to prevent double-purchasing
-                $auction = Auction::where('id', $auctionId)->lockForUpdate()->first();
-
-                // Check if auction is active
-                if ($auction && $auction->status === 'Active') {
-                    
-                    // 2. Reduce Car Quantity if available (> 0)
-                    $car = Car::find($carId);
-                    if ($car && $car->quantity > 0) {
-                        $car->update([
-                            'quantity' => $car->quantity - 1
-                        ]);
-                    }
-
-                    // 3. Mark Auction as 'Closed' and update bidding/winner fields
-                    $auction->update([
-                        'status' => 'Closed',
-                        'current_bid' => $price,
-                        'highest_bidder_id' => $customerId,
-                        'winner_paid' => 0,
-                    ]);
-
-                    // 4. Record the winning bid in customer history
-                    AuctionBid::create([
-                        'auction_id' => $auctionId,
-                        'customer_id' => $customerId,
-                        'bid_amount' => $price,
-                    ]);
-
-                    return redirect()->route('auction.lobby')
-                        ->with('success', 'Order placed! Please proceed with payment. Approval is pending manager confirmation.');
-
-                } else {
-                    // Auction is not active
-                    return redirect()->route('auction.lobby')
-                        ->with('error', 'Sorry, this auction is no longer available.');
-                }
-            });
-
-        } catch (\Exception $e) {
-            return redirect()->route('auction.lobby')
-                ->with('error', 'An error occurred during the transaction.');
         }
     }
 
@@ -271,28 +210,8 @@ class CustomerController extends Controller
         $action = $request->input('action');
 
         if (!$userId || !$action) {
-            return redirect()->route('car.builder');
+            return redirect()->route('customer.builder')->with('error', 'Invalid session or action request.');
         }
-
-        // Determine redirection fallback
-        $redirect = $request->header('referer', route('customer.builder'));
-        $urlParts = parse_url($redirect);
-        $path = $urlParts['path'] ?? route('car.builder');
-        $queryParams = [];
-
-        if (isset($urlParts['query'])) {
-            parse_str($urlParts['query'], $queryParams);
-        }
-
-        // Remove status messages so they don't stack up
-        unset($queryParams['success'], $queryParams['error']);
-        
-        $newQuery = http_build_query($queryParams);
-        $finalRedirect = $path;
-        if (!empty($newQuery)) {
-            $finalRedirect .= "?" . $newQuery;
-        }
-        $separator = (strpos($finalRedirect, '?') !== false) ? "&" : "?";
 
         try {
             // --- ACTIONS ---
@@ -307,25 +226,29 @@ class CustomerController extends Controller
                     ['product_id' => $pId]
                 );
 
-                return redirect()->route('car.builder')->with('success', 'Part selected');
+                return redirect()->route('customer.builder')->with('success', 'Part selected successfully.');
             } 
             
             // Remove a single part
             else if ($action == "remove_part") {
                 $catId = $request->input('cat_id');
                 
-                BuilderTemporary::where('user_id', $userId)
+                $deleted = BuilderTemporary::where('user_id', $userId)
                     ->where('category_id', $catId)
                     ->delete();
                 
-                return redirect($finalRedirect . $separator . "success=Part removed");
+                if ($deleted) {
+                    return redirect()->back()->with('success', 'Part removed from your build successfully.');
+                }
+                
+                return redirect()->back()->with('error', 'Could not find the part to remove.');
             }
 
             // Clear the entire temporary build
             else if ($action == "clear_all") {
                 BuilderTemporary::where('user_id', $userId)->delete();
                 
-                return redirect($finalRedirect . $separator . "success=Build cleared");
+                return redirect()->back()->with('success', 'Your temporary build progress has been cleared.');
             }
 
             // Toggle wishlist for a single product
@@ -338,13 +261,13 @@ class CustomerController extends Controller
                 
                 if ($wishlistItem) {
                     $wishlistItem->delete();
-                    return redirect($finalRedirect . $separator . "success=Part removed from wishlist");
+                    return redirect()->back()->with('success', 'Part successfully removed from your wishlist.');
                 } else {
                     Wishlist::create([
                         'user_id' => $userId,
                         'product_id' => $pId,
                     ]);
-                    return redirect($finalRedirect . $separator . "success=Part added to wishlist");
+                    return redirect()->back()->with('success', 'Part successfully added to your wishlist.');
                 }
             }
 
@@ -366,38 +289,32 @@ class CustomerController extends Controller
                     ]);
                 }
                 
-                return redirect($finalRedirect . $separator . "success=Part added to cart");
+                return redirect()->back()->with('success', 'Selected part has been added to your cart.');
             }
 
             // Save the entire current build
             else if ($action == "save_build") {
                 $buildName = $request->input('build_name');
-
                 $parts = BuilderTemporary::where('user_id', $userId)->get();
 
                 if (count($parts) > 0) {
-                    return DB::transaction(function () use ($userId, $buildName, $parts, $finalRedirect, $separator) {
+                    return DB::transaction(function () use ($userId, $buildName, $parts) {
                         $userBuild = UserBuild::create([
                             'user_id' => $userId,
                             'build_name' => $buildName,
                         ]);
 
-                        for ($i = 0; $i < count($parts); $i = $i + 1)
-                            {
-
-                             BuildItem::create
-                             ([
+                        for ($i = 0; $i < count($parts); $i = $i + 1) {
+                            BuildItem::create([
                                 'build_id' => $userBuild->id,
                                 'product_id' => $parts[$i]->product_id,
                             ]);
-                        
+                        }
 
-                            }
-
-                        return redirect()->route('saved.builds')->with('success', 'Build saved successfully');
+                        return redirect()->route('customer.saved.builds')->with('success', 'Your custom build has been saved successfully!');
                     });
                 } else {
-                    return redirect($finalRedirect . $separator . "error=Cannot save an empty build");
+                    return redirect()->back()->with('error', 'Cannot save an empty build. Please select parts first.');
                 }
             }
 
@@ -409,6 +326,10 @@ class CustomerController extends Controller
                     $parts = BuildItem::where('build_id', $bId)->get();
                 } else {
                     $parts = BuilderTemporary::where('user_id', $userId)->get();
+                }
+
+                if (count($parts) === 0) {
+                    return redirect()->back()->with('error', 'No parts found in this build to add to the cart.');
                 }
                 
                 for ($i = 0; $i < count($parts); $i = $i + 1) {
@@ -429,7 +350,7 @@ class CustomerController extends Controller
                     }
                 }
                 
-                return redirect($finalRedirect . $separator . "success=Entire build added to cart");
+                return redirect()->back()->with('success', 'Your entire custom build components have been successfully added to your cart!');
             }
 
             // Toggle wishlist for the ENTIRE build
@@ -464,7 +385,7 @@ class CustomerController extends Controller
                                 ->where('product_id', $currPId)
                                 ->delete();
                         }
-                        return redirect($finalRedirect . $separator . "success=Build removed from wishlist");
+                        return redirect()->back()->with('success', 'Complete build successfully removed from your wishlist.');
                     } else {
                         for ($i = 0; $i < $totalParts; $i = $i + 1) {
                             $currPId = $parts[$i]->product_id;
@@ -473,18 +394,18 @@ class CustomerController extends Controller
                                 'product_id' => $currPId,
                             ]);
                         }
-                        return redirect($finalRedirect . $separator . "success=Entire build added to wishlist");
+                        return redirect()->back()->with('success', 'Entire build successfully added to your wishlist!');
                     }
                 } else {
-                    return redirect($finalRedirect . $separator . "error=Empty build");
+                    return redirect()->back()->with('error', 'Cannot perform wishlist action on an empty build.');
                 }
             }
 
-        } catch (\Exception $e) {
-            return redirect()->route('car.builder')->with('error', 'An error occurred during the action.');
+        } catch (\Throwable $e) {
+            return redirect()->back()->with('error', 'An unexpected error occurred: ' . $e->getMessage());
         }
 
-        return redirect()->route('car.builder');
+        return redirect()->route('customer.builder');
     }
 
 
@@ -493,47 +414,93 @@ class CustomerController extends Controller
         $request->validate([
             'car_id' => 'required|integer',
             'price' => 'required|numeric|min:0',
+            'auction_id' => 'nullable|integer',
         ]);
 
         $userId = session('user_id');
         $carId = $request->input('car_id');
         $price = $request->input('price');
+        $auctionId = $request->input('auction_id');
+        $isAuction = !empty($auctionId);
 
         try {
-            return DB::transaction(function () use ($userId, $carId, $price) {
-                // 1. Check if car is still available with pessimistic locking
-                $car = Car::where('id', $carId)->lockForUpdate()->first();
+            return DB::transaction(function () use ($userId, $carId, $price, $auctionId, $isAuction) {
+                
+                if ($isAuction) {
+                    // --- AUCTION PURCHASE PATH ---
+                    $auction = Auction::where('id', $auctionId)->lockForUpdate()->first();
 
-                if ($car && $car->quantity > 0) {
-                    // 2. Insert into orders table
-                    Order::create([
-                        'customer_id' => $userId,
-                        'car_id' => $carId,
-                        'quantity' => 1,
-                        'total_price' => $price,
-                        // date_ordered defaults or handles automatically via database/timestamp
-                    ]);
 
-                    // 3. Update Car Stock and Status
-                    $newQty = $car->quantity - 1;
+                    if ($auction && $auction->status === 'Active') {
+                        // 1. Mark Auction as Closed and set winner details
+                        $auction->update([
+                            'status' => 'Closed',
+                            'current_bid' => $price,
+                            'highest_bidder_id' => $userId,
+                            'winner_paid' => 1,
+                        ]);
+
+                        // 2. Record the winning bid/purchase history
+                        AuctionBid::create([
+                            'auction_id' => $auctionId,
+                            'customer_id' => $userId,
+                            'bid_amount' => $price,
+                            'bid_time' => now(),
+                        ]);
+
+        
+
+                        // 3. Record in auction sales table
+                        AuctionSale::create([
+                            'auction_id' => $auctionId,
+                            'car_id' => $carId,
+                            'customer_id' => $userId,
+                            'sale_price' => $price,
+                            'sale_date' => now(),
+                        ]);
+
+                        return redirect()->route('customer.auction.lobby')
+                            ->with('success', 'Auction purchase complete! Your payment has been recorded.');
+
                     
-                    // Note: Your legacy status enum supports 'In Stock', 'Upcoming', 'Out of Stock' based on schema. 
-                    // Let's use 'Out of Stock' or 'In Stock' accordingly.
-                    $newStatus = ($newQty <= 0) ? 'Out of Stock' : 'In Stock';
+                    } else {
+                        return redirect()->route('customer.auction.lobby')
+                            ->with('error', 'Sorry, this auction is no longer active.');
+                    }
 
-                    $car->update([
-                        'quantity' => $newQty,
-                        'status' => $newStatus,
-                    ]);
-
-                    return redirect()->route('customer.showroom')->with('success', 'Congratulations! Your vehicle purchase is complete.');
                 } else {
-                    return redirect()->route('customer.showroom')->with('error', 'Sorry, this vehicle just sold out.');
+                    // --- STANDARD SHOWROOM PURCHASE PATH ---
+                    $car = Car::where('id', $carId)->lockForUpdate()->first();
+
+                    if ($car && $car->quantity > 0) {
+                        Order::create([
+                            'customer_id' => $userId,
+                            'car_id' => $carId,
+                            'quantity' => 1,
+                            'total_price' => $price,
+                        ]);
+
+                        $newQty = $car->quantity - 1;
+                        $newStatus = ($newQty <= 0) ? 'Out of Stock' : 'In Stock';
+
+                        $car->update([
+                            'quantity' => $newQty,
+                            'status' => $newStatus,
+                        ]);
+
+                        return redirect()->route('customer.showroom')
+                            ->with('success', 'Congratulations! Your vehicle purchase is complete.');
+                    } else {
+                        return redirect()->route('customer.showroom')
+                            ->with('error', 'Sorry, this vehicle just sold out.');
+                    }
                 }
             });
 
         } catch (\Exception $e) {
-            return redirect()->route('customer.showroom')->with('error', 'An error occurred during the purchase.');
+
+            $redirectRoute = $isAuction ? route('customer.auction.lobby') : route('customer.showroom');
+            return redirect()->to($redirectRoute)->with('error', 'An error occurred during the purchase: ' . $e->getMessage());
         }
     }
 
@@ -644,7 +611,7 @@ class CustomerController extends Controller
                     ->first();
 
                 if (!$userBuild) {
-                    return redirect()->route('saved.builds')
+                    return redirect()->route('customer.saved.builds')
                         ->with('error', 'You do not have permission to delete this build.');
                 }
 
@@ -654,12 +621,12 @@ class CustomerController extends Controller
                 // 3. Delete the build itself
                 $userBuild->delete();
 
-                return redirect()->route('saved.builds')
+                return redirect()->route('customer.saved.builds')
                     ->with('success', 'Build deleted successfully!');
             });
 
         } catch (\Exception $e) {
-            return redirect()->route('saved.builds')
+            return redirect()->route('customer.saved.builds')
                 ->with('error', 'Error occurred while deleting.');
         }
     }
@@ -1504,8 +1471,9 @@ class CustomerController extends Controller
         $dbTags = Tag::all();
 
         // 3. Determine Required Tags for compatibility (exclude current category)
+        // FIXED: Explicitly prefixed with 'builder_temporary.' to resolve ambiguity
         $currentPartsTags = BuilderTemporary::where('user_id', $userId)
-            ->where('category_id', '!=', $catId)
+            ->where('builder_temporary.category_id', '!=', $catId)
             ->join('products', 'builder_temporary.product_id', '=', 'products.id')
             ->pluck('products.tags');
 
@@ -1543,12 +1511,15 @@ class CustomerController extends Controller
         // 5. Build Main Query
         $query = Product::where('category_id', $catId);
 
+        // Compatibility Tag Filter (Ensures parts share common tags OR are Universal)
         if (!empty($requiredTags)) {
             $query->where(function ($q) use ($requiredTags) {
+                // Universal parts are always allowed across all categories
                 $q->where('tags', 'like', '%Universal%')
-                ->orWhereNull('tags')
-                ->orWhere('tags', '');
+                  ->orWhereNull('tags')
+                  ->orWhere('tags', '');
 
+                // Or they match at least one required brand/group tag
                 foreach ($requiredTags as $reqTag) {
                     $q->orWhere('tags', 'like', '%' . trim($reqTag) . '%');
                 }
@@ -1570,8 +1541,14 @@ class CustomerController extends Controller
             });
         }
 
+        // Dropdown Tag Filter (Ensures selecting a tag still keeps Universal parts visible)
         if (!empty($tagFilter)) {
-            $query->where('tags', 'like', "%{$tagFilter}%");
+            $query->where(function ($q) use ($tagFilter) {
+                $q->where('tags', 'like', "%{$tagFilter}%")
+                  ->orWhere('tags', 'like', '%Universal%')
+                  ->orWhereNull('tags')
+                  ->orWhere('tags', '');
+            });
         }
 
         if ($sort == 'price_low') {
@@ -1637,6 +1614,11 @@ class CustomerController extends Controller
             ->whereNull('product_id')
             ->exists();
 
+        $wishlistMap = Wishlist::where('user_id', $userId)
+            ->whereNotNull('product_id')
+            ->pluck('product_id', 'product_id')
+            ->toArray();
+
         $totalPrice = 0;
         $totalHp = 0;
         $hasUnavailableParts = false;
@@ -1644,6 +1626,10 @@ class CustomerController extends Controller
 
         // 5. --- COMPATIBILITY LOGIC ---
         $allSelectedProductIds = array_values($dbSelections);
+        
+        // FETCH ALL SELECTED PRODUCTS AND MAP THEM BY ID
+        $partsMap = Product::whereIn('id', $allSelectedProductIds)->get()->keyBy('id');
+
         $isCompatible = true;
         $contradictionError = "";
         $commonTags = null;
@@ -1651,7 +1637,7 @@ class CustomerController extends Controller
         if (count($allSelectedProductIds) > 1) {
             // --- PART A: Common Tag Check ---
             foreach ($allSelectedProductIds as $currentPid) {
-                $product = Product::find($currentPid);
+                $product = $partsMap[$currentPid] ?? null;
 
                 if (!$product) {
                     $isCompatible = false;
@@ -1702,7 +1688,7 @@ class CustomerController extends Controller
 
             // --- PART B: Contradiction Check (The "No-" Tag Logic) ---
             foreach ($dbSelections as $catIdKey => $prodIdVal) {
-                $product = Product::find($prodIdVal);
+                $product = $partsMap[$prodIdVal] ?? null;
 
                 if ($product && !empty($product->tags)) {
                     $pTagsArr = explode(',', $product->tags);
@@ -1727,10 +1713,11 @@ class CustomerController extends Controller
         return view('customer.car-builder', compact(
             'dbSelections', 'currentCart', 'mandatoryCats', 'optionalCats', 
             'isBuildWishlisted', 'totalPrice', 'totalHp', 'hasUnavailableParts', 
-            'buildStockExceeded', 'isCompatible', 'contradictionError', 'userId'
+            'buildStockExceeded', 'isCompatible', 'contradictionError', 'userId', 'partsMap', 'wishlistMap'
         ));
     }
 
+    
     public function viewCart()
     {
         $userId = session('user_id');
@@ -1805,6 +1792,7 @@ class CustomerController extends Controller
         // Fetch the car with its category relation
         $carQuery = Car::with('category')->where('id', $carId);
 
+        // Only apply stock/status restrictions if it's a regular showroom purchase
         if (!$isAuction) {
             $carQuery->where('quantity', '>', 0)->where('status', 'In Stock');
         }
@@ -1818,7 +1806,7 @@ class CustomerController extends Controller
 
         // Determine the price and purchase target route/action
         $finalPrice = $car->price;
-        $purchaseAction = route('customer.car.purchase'); // Adjust to your Laravel purchase submit route name
+        $purchaseAction = route('customer.car.purchase'); // Unified POST route for both
         $headingText = "Checkout Summary";
 
         if ($isAuction) {
@@ -1826,7 +1814,6 @@ class CustomerController extends Controller
 
             if ($auctionData) {
                 $finalPrice = $auctionData->reserve_price;
-                $purchaseAction = route('customer.auction.purchase.submit'); // Adjust to your Laravel auction purchase route name
                 $headingText = "Auction Settlement";
             } else {
                 return redirect()->route('customer.auction.view', $auctionId)->with('error', 'Auction is no longer active');

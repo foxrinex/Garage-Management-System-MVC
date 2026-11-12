@@ -53,7 +53,7 @@
                 </a>
                 <div>
                     <div class="fw-bold text-primary fs-4" id="main-total">$0.00</div>
-                    <span class="badge bg-dark">{{ count($dbSelections) }} items selected</span>
+                    <span class="badge bg-dark">{{ count($dbSelections ?? []) }} items selected</span>
                 </div>
             </div>
         </div>
@@ -75,12 +75,12 @@
                     @foreach ($mandatoryCats as $cat)
                         @php
                             $pId = $dbSelections[$cat->id] ?? null;
-                            $part = $pId ? \App\Models\Product::find($pId) : null;
+                            $part = $pId ? ($partsMap[$pId] ?? null) : null;
 
                             $isAvailable = true;
                             $isDeleted = false;
                             $pStatus = 'In Stock';
-                            $isPartWishlisted = false;
+                            $isPartWishlisted = $pId ? isset($wishlistMap[$pId]) : false;
 
                             if ($pId && !$part) {
                                 $isDeleted = true;
@@ -102,8 +102,6 @@
                                 if (($qtyInCart + 1) > $pQty) {
                                     $buildStockExceeded = true;
                                 }
-
-                                $isPartWishlisted = Wishlist::where('user_id', $userId)->where('product_id', $pId)->exists();
                             }
                         @endphp
                         <div class="category-row {{ (!$isAvailable && ($part || $isDeleted)) ? 'unavailable' : '' }}">
@@ -167,7 +165,7 @@
                                             @csrf
                                             <input type="hidden" name="p_id" value="{{ $pId }}">
                                             <input type="hidden" name="action" value="wishlist_item">
-                                            <button type="submit" class="btn btn-sm {{ $isPartWishlisted ? 'btn-warning' : 'btn-outline-warning' }}">
+                                            <button type="submit" class="btn btn-sm {{ $isPartWishlisted ? 'btn-warning' : 'btn-outline-warning' }}" title="{{ $isPartWishlisted ? 'Remove from wishlist' : 'Add to wishlist' }}">
                                                 <i class="fa fa-heart"></i>
                                             </button>
                                         </form>
@@ -211,12 +209,12 @@
                     @foreach ($optionalCats as $cat)
                         @php
                             $pId = $dbSelections[$cat->id] ?? null;
-                            $part = $pId ? \App\Models\Product::find($pId) : null;
+                            $part = $pId ? ($partsMap[$pId] ?? null) : null;
 
                             $isAvailable = true;
                             $isDeleted = false;
                             $pStatus = 'In Stock';
-                            $isPartWishlisted = false;
+                            $isPartWishlisted = $pId ? isset($wishlistMap[$pId]) : false;
 
                             if ($pId && !$part) {
                                 $isDeleted = true;
@@ -238,8 +236,6 @@
                                 if (($qtyInCart + 1) > $pQty) {
                                     $buildStockExceeded = true;
                                 }
-
-                                $isPartWishlisted = Wishlist::where('user_id', $userId)->where('product_id', $pId)->exists();
                             }
                         @endphp
                         <div class="category-row {{ (!$isAvailable && ($part || $isDeleted)) ? 'unavailable' : '' }}">
@@ -303,7 +299,7 @@
                                             @csrf
                                             <input type="hidden" name="p_id" value="{{ $pId }}">
                                             <input type="hidden" name="action" value="wishlist_item">
-                                            <button type="submit" class="btn btn-sm {{ $isPartWishlisted ? 'btn-warning' : 'btn-outline-warning' }}">
+                                            <button type="submit" class="btn btn-sm {{ $isPartWishlisted ? 'btn-warning' : 'btn-outline-warning' }}" title="{{ $isPartWishlisted ? 'Remove from wishlist' : 'Add to wishlist' }}">
                                                 <i class="fa fa-heart"></i>
                                             </button>
                                         </form>
@@ -351,7 +347,7 @@
                         
                         <div class="mb-3">
                             <small class="text-muted d-block">Estimated Total Performance</small>
-                            <h3 class="fw-bold text-dark mb-0">{{ $totalHp }} <small style="font-size: 0.9rem;">HP</small></h3>
+                            <h3 class="fw-bold text-dark mb-0"><span id="display-hp">{{ $totalHp ?? 0 }}</span> <small style="font-size: 0.9rem;">HP</small></h3>
                         </div>
                         <hr>
 
@@ -367,18 +363,18 @@
                         @if ($missing > 0)
                             <p class="small text-danger"><i class="fa fa-times-circle"></i> Missing {{ $missing }} core parts</p>
                             <button class="btn btn-secondary w-100 fw-bold mb-2" disabled>Add Build to Cart</button>
-                        @elseif ($hasUnavailableParts)
+                        @elseif ($hasUnavailableParts ?? false)
                             <p class="small text-danger"><i class="fa fa-exclamation-triangle"></i> Some parts are unavailable</p>
                             <button class="btn btn-secondary w-100 fw-bold mb-2" disabled>Add Build to Cart</button>
-                        @elseif (!$isCompatible)
+                        @elseif (!($isCompatible ?? true))
                             <div class="alert alert-warning p-2 small text-start">
                                 <i class="fa fa-warning"></i> <strong>Compatibility Issue:</strong> 
                                 <p class="mb-0 mt-1" style="font-size: 0.75rem;">
-                                    {{ $contradictionError != "" ? $contradictionError : "Selected parts do not share a common tag. Ensure all parts belong to the same tag group or are marked 'universal'." }}
+                                    {{ ($contradictionError ?? "") != "" ? $contradictionError : "Selected parts do not share a common tag. Ensure all parts belong to the same tag group or are marked 'universal'." }}
                                 </p>
                             </div>
                             <button class="btn btn-secondary w-100 fw-bold mb-2" disabled>Add Build to Cart</button>
-                        @elseif ($buildStockExceeded)
+                        @elseif ($buildStockExceeded ?? false)
                             <p class="small text-danger"><i class="fa fa-exclamation-circle"></i> Some parts exceed current stock levels in your cart</p>
                             <button class="btn btn-secondary w-100 fw-bold mb-2" disabled title="Check individual parts for stock limits">Add Build to Cart</button>
                         @else
@@ -397,15 +393,31 @@
                                 <label class="small fw-bold">Build Name:</label>
                                 <input type="text" name="build_name" id="build_name" class="form-control form-control-sm" placeholder="e.g. My Fast Sedan" oninput="checkSaveButton()" required>
                             </div>
-                            <button type="submit" id="save-build-btn" class="btn btn-primary w-100 fw-bold" {{ !$isCompatible ? 'disabled' : '' }}>
+                            <button type="submit" id="save-build-btn" class="btn btn-primary w-100 fw-bold" {{ !($isCompatible ?? true) ? 'disabled' : '' }}>
                                 <i class="fa fa-save"></i> Save Build
                             </button>
                         </form>
 
+                        @php
+                            // Check if ALL currently selected build items are in the wishlist
+                            $allSelectedIds = array_values($dbSelections ?? []);
+                            $isEntireBuildWishlisted = true;
+                            if (count($allSelectedIds) > 0) {
+                                foreach ($allSelectedIds as $sId) {
+                                    if (!isset($wishlistMap[$sId])) {
+                                        $isEntireBuildWishlisted = false;
+                                        break;
+                                    }
+                                }
+                            } else {
+                                $isEntireBuildWishlisted = false;
+                            }
+                        @endphp
+
                         <form action="{{ route('customer.builder.action') }}" method="POST">
                             @csrf
                             <input type="hidden" name="action" value="wishlist_build">
-                            <button type="submit" class="btn {{ $isBuildWishlisted ? 'btn-warning' : 'btn-outline-warning' }} w-100 fw-bold" {{ count($dbSelections) == 0 ? 'disabled' : '' }}>
+                            <button type="submit" class="btn {{ $isEntireBuildWishlisted ? 'btn-warning' : 'btn-outline-warning' }} w-100 fw-bold" {{ count($dbSelections ?? []) == 0 ? 'disabled' : '' }}>
                                 <i class="fa fa-heart"></i> Wishlist Build
                             </button>
                         </form>
@@ -422,13 +434,13 @@
     </div>
 
     <script>
-        document.getElementById('main-total').innerText = "${{ number_format($totalPrice, 2) }}";
+        document.getElementById('main-total').innerText = "${{ number_format($totalPrice ?? 0, 2) }}";
 
         function checkSaveButton() {
             var nameInput = document.getElementById('build_name');
             var saveBtn = document.getElementById('save-build-btn');
-            var selectionCount = {{ count($dbSelections) }};
-            var isCompatible = {{ $isCompatible ? 'true' : 'false' }};
+            var selectionCount = {{ count($dbSelections ?? []) }};
+            var isCompatible = {{ ($isCompatible ?? true) ? 'true' : 'false' }};
 
             if (nameInput && saveBtn) {
                 if (nameInput.value.trim() !== "" && selectionCount > 0 && isCompatible === true) {

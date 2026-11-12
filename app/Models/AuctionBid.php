@@ -15,4 +15,15 @@ class AuctionBid extends Model
         'bid_amount',
         'bid_time',
     ];
+
+    public function customer()
+    {
+        return $this->belongsTo(User::class, 'customer_id', 'uid');
+    }
+
+    // Add this auction relationship method
+    public function auction()
+    {
+        return $this->belongsTo(Auction::class, 'auction_id', 'id');
+    }
 }

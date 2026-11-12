@@ -22,7 +22,6 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/customer/account-delete', [CustomerController::class, 'deleteAccount'])->name('customer.account.delete');
     Route::post('/customer/add-to-cart', [CustomerController::class, 'addToCart'])->name('customer.cart.add');
     Route::post('/customer/auction/bid', [CustomerController::class, 'placeBid'])->name('customer.auction.bid');
-    Route::post('/customer/auction-purchase', [CustomerController::class, 'auctionPurchase'])->name('customer.auction.purchase');
     Route::post('/customer/builder-action', [CustomerController::class, 'builderAction'])->name('customer.builder.action');
     Route::post('/customer/car-purchase', [CustomerController::class, 'carPurchase'])->name('customer.car.purchase');
     Route::post('/customer/change-password', [CustomerController::class, 'changePassword'])->name('customer.password.update');

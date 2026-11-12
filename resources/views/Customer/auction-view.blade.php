@@ -35,14 +35,35 @@
             </div>
         @endif
 
-        @if ($isHighestBidder)
-            <div class="alert alert-success d-flex align-items-center mb-4" style="border-radius: 15px;">
-                <i class="fa fa-trophy fa-2x me-3"></i>
-                <div>
-                    <h6 class="mb-0 fw-bold">You are currently the highest bidder!</h6>
-                    <small>Keep an eye on the timer. If no one outbids you, the car is yours.</small>
+        {{-- Dynamic Status Banner --}}
+        @if ($auction->status == 'Active')
+            @if ($isHighestBidder)
+                <div class="alert alert-success d-flex align-items-center mb-4 shadow-sm" style="border-radius: 15px;">
+                    <i class="fa fa-trophy fa-2x me-3"></i>
+                    <div>
+                        <h6 class="mb-0 fw-bold">You are currently the highest bidder!</h6>
+                        <small>Keep an eye on the timer. If no one outbids you, the car is yours.</small>
+                    </div>
                 </div>
-            </div>
+            @endif
+        @else
+            @if ($auction->highest_bidder_id == session('user_id'))
+                <div class="alert alert-success d-flex align-items-center mb-4 shadow-sm" style="border-radius: 15px;">
+                    <i class="fa fa-trophy fa-2x me-3"></i>
+                    <div>
+                        <h6 class="mb-0 fw-bold">Congratulations! You won this auction!</h6>
+                        <small>The auction has ended and you secured the winning bid. Contact the Garage to arrange payment and pickup.</small>
+                    </div>
+                </div>
+            @else
+                <div class="alert alert-secondary d-flex align-items-center mb-4 shadow-sm" style="border-radius: 15px;">
+                    <i class="fa fa-info-circle fa-2x me-3"></i>
+                    <div>
+                        <h6 class="mb-0 fw-bold">Auction Closed</h6>
+                        <small>Better luck next time! This auction has ended and another bidder won.</small>
+                    </div>
+                </div>
+            @endif
         @endif
 
         <div class="row">
@@ -96,13 +117,19 @@
             </div>
 
             <div class="col-md-5">
-                <div class="timer-box mb-4 shadow">
-                    <h6 class="text-uppercase small mb-2" style="letter-spacing: 1px;">Time Remaining</h6>
-                    <h2 id="countdown" class="fw-bold mb-0">--:--:--</h2>
-                </div>
+                @if ($auction->status == 'Active')
+                    <div class="timer-box mb-4 shadow">
+                        <h6 class="text-uppercase small mb-2" style="letter-spacing: 1px;">Time Remaining</h6>
+                        <h2 id="countdown" class="fw-bold mb-0">--:--:--</h2>
+                    </div>
+                @else
+                    <div class="alert alert-secondary text-center fw-bold py-3 mb-4 shadow-sm" style="border-radius: 15px;">
+                        <i class="fa fa-clock-o me-2"></i> AUCTION ENDED
+                    </div>
+                @endif
 
                 <div class="card border-0 shadow-sm p-4 mb-4" style="border-radius: 20px;">
-                    <p class="text-muted mb-1">Current Highest Bid</p>
+                    <p class="text-muted mb-1">{{ $auction->status == 'Active' ? 'Current Highest Bid' : 'Winning Bid' }}</p>
                     <div class="current-bid-display mb-4">${{ number_format($auction->current_bid) }}</div>
 
                     @if ($auction->status == 'Active')
@@ -141,8 +168,8 @@
                             <div class="buy-now-display mb-3">${{ number_format($auction->reserve_price) }}</div>
                             
                             <div class="d-grid">
-                                <a href="{{ route('customer.auction.purchase', ['id' => $auction->car_id, 'auction_id' => $auction->id]) }}" 
-                                   class="btn btn-success btn-lg fw-bold py-3 shadow-sm">
+                                <a href="{{ route('customer.car.transaction', ['id' => $auction->car_id, 'auction_id' => $auction->id]) }}" 
+                                   class="btn btn-success btn-lg fw-bold py-3 shadow-sm w-100 text-center">
                                     <i class="fa fa-bolt me-2"></i> BUY IT NOW
                                 </a>
                             </div>
@@ -156,7 +183,7 @@
                 </div>
 
                 <div class="card border-0 shadow-sm p-4" style="border-radius: 20px;">
-                    <h6 class="fw-bold mb-4"><i class="fa fa-history me-2 text-primary"></i>Live Bid History</h6>
+                    <h6 class="fw-bold mb-4"><i class="fa fa-history me-2 text-primary"></i>Bid History</h6>
                     <div class="bid-history-scroll">
                         <table class="table table-hover align-middle">
                             <tbody>
@@ -186,6 +213,7 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.0/dist/js/bootstrap.bundle.min.js"></script>
+    @if ($auction->status == 'Active')
     <script>
         var endTime = new Date("{{ $auction->end_time }}").getTime();
 
@@ -198,13 +226,19 @@
             var minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
             var seconds = Math.floor((distance % (1000 * 60)) / 1000);
 
-            document.getElementById("countdown").innerHTML = days + "d " + hours + "h " + minutes + "m " + seconds + "s ";
+            var countdownEl = document.getElementById("countdown");
+            if (countdownEl) {
+                countdownEl.innerHTML = days + "d " + hours + "h " + minutes + "m " + seconds + "s ";
+            }
 
             if (distance < 0) {
                 clearInterval(x);
-                document.getElementById("countdown").innerHTML = "AUCTION CLOSED";
+                if (countdownEl) {
+                    countdownEl.innerHTML = "AUCTION CLOSED";
+                }
             }
         }, 1000);
     </script>
+    @endif
 </body>
 </html>

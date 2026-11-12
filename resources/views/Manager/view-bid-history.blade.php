@@ -33,8 +33,8 @@
                             <span class="ms-2 badge bg-secondary">ID: #{{ $auction->id }}</span>
                         </p>
                     </div>
-                    <a href="#" class="btn btn-outline-primary rounded-pill">
-                        <i class="fa fa-arrow-left"></i> Back to Dashboard
+                    <a href="{{ route('manager.auction.dashboard') }}" class="btn btn-outline-primary rounded-pill">
+                        <i class="fa fa-arrow-left"></i> Back to Auction Dashboard
                     </a>
                 </div>
 

@@ -24,6 +24,7 @@ use App\Models\RepairPartsSelected;
 use App\Models\WarrantyClaim;
 use Illuminate\Support\Facades\Auth;
 use App\Models\Order;
+use App\Models\AuctionBid;
 
 
 
@@ -173,13 +174,13 @@ class ManagerController extends Controller
                 $auction = Auction::where('id', $id)->lockForUpdate()->first();
 
                 if (!$auction) {
-                    return redirect()->route('auction.pending.payment')->with('error', 'Data not found.');
+                    return redirect()->route('manager.auction.pending')->with('error', 'Data not found.');
                 }
 
                 $car = Car::where('id', $auction->car_id)->lockForUpdate()->first();
 
                 if (!$car) {
-                    return redirect()->route('auction.pending.payment')->with('error', 'Associated car not found.');
+                    return redirect()->route('manager.auction.pending')->with('error', 'Associated car not found.');
                 }
 
                 $carId = $auction->car_id;
@@ -208,14 +209,14 @@ class ManagerController extends Controller
                 ]);
 
                 if ($sale) {
-                    return redirect()->route('auction.pending.payment')->with('success', 'Payment confirmed and recorded in Auction Sales.');
+                    return redirect()->route('manager.auction.pending')->with('success', 'Payment confirmed and recorded in Auction Sales.');
                 } else {
-                    return redirect()->route('auction.pending.payment')->with('error', 'Failed to record sale data.');
+                    return redirect()->route('manager.auction.confirm.payment')->with('error', 'Failed to record sale data.');
                 }
             });
 
         } catch (\Exception $e) {
-            return redirect()->route('auction.pending.payment')->with('error', 'An error occurred while confirming the auction payment.');
+            return redirect()->route('manager.auction.confirm.payment')->with('error', 'An error occurred while confirming the auction payment.');
         }
     }
 
@@ -240,35 +241,36 @@ class ManagerController extends Controller
 
                 $carId = $auction->car_id;
 
-                // 2. Fetch the associated car
+                // 2. Fetch the associated car and restore it to showroom inventory
                 $car = Car::where('id', $carId)->lockForUpdate()->first();
 
                 if ($car) {
-                    // Delete the image file from public/uploads if it exists
-                    if (!empty($car->image)) {
-                        $imagePath = public_path('uploads/' . $car->image);
-                        if (File::exists($imagePath)) {
-                            File::delete($imagePath);
-                        }
-                    }
-
-                    // Delete the car record entirely since the auction is terminated
-                    $car->delete();
+                    // Do NOT delete the image or the car record.
+                    // Restore its stock and status so it reappears in the showroom.
+                    $car->update([
+                        'quantity' => $car->quantity + 1,
+                        'status' => 'In Stock',
+                    ]);
                 }
 
-                // 3. Delete the Auction record
+                // 3. Optional: Delete associated bids if your database doesn't use cascade on delete
+                AuctionBid::where('auction_id', $id)->delete();
+
+                // 4. Delete the Auction record
                 $deleted = $auction->delete();
 
-                // 4. Redirect immediately
+                // 5. Redirect immediately
                 if ($deleted) {
-                    return redirect()->route('manager.auction.dashboard')->with('success', 'Auction and its image were successfully removed.');
+                    return redirect()->route('manager.auction.dashboard')
+                        ->with('success', 'Auction terminated successfully. The vehicle has been returned to the showroom.');
                 } else {
                     return redirect()->route('manager.auction.dashboard')->with('error', 'Delete failed');
                 }
             });
 
         } catch (\Exception $e) {
-            return redirect()->route('manager.auction.dashboard')->with('error', 'An error occurred while deleting the auction.');
+            return redirect()->route('manager.auction.dashboard')
+                ->with('error', 'An error occurred while deleting the auction: ' . $e->getMessage());
         }
     }
 
@@ -349,13 +351,13 @@ class ManagerController extends Controller
                 $auction = Auction::where('id', $id)->lockForUpdate()->first();
 
                 if (!$auction) {
-                    return redirect()->route('auction.pending.payment')->with('error', 'Auction record not found.');
+                    return redirect()->route('manager.auction.pending')->with('error', 'Auction record not found.');
                 }
 
                 $car = Car::where('id', $auction->car_id)->lockForUpdate()->first();
 
                 if (!$car) {
-                    return redirect()->route('auction.pending.payment')->with('error', 'Associated car not found.');
+                    return redirect()->route('manager.auction.pending')->with('error', 'Associated car not found.');
                 }
 
                 // --- 2. Update auction status to 'failed' (or 'Failed' matching your convention) ---
@@ -371,14 +373,14 @@ class ManagerController extends Controller
                 ]);
 
                 if ($updatedCar) {
-                    return redirect()->route('auction.pending.payment')->with('success', 'Payment rejected. Quantity increased and car is In Stock.');
+                    return redirect()->route('manager.auction.pending')->with('success', 'Payment rejected. Quantity increased and car is In Stock.');
                 } else {
-                    return redirect()->route('auction.pending.payment')->with('error', 'Failed to update car inventory.');
+                    return redirect()->route('manager.auction.pending')->with('error', 'Failed to update car inventory.');
                 }
             });
 
         } catch (\Exception $e) {
-            return redirect()->route('auction.pending.payment')->with('error', 'An error occurred while rejecting the auction payment.');
+            return redirect()->route('manager.auction.pending')->with('error', 'An error occurred while rejecting the auction payment.');
         }
     }
 
@@ -2178,39 +2180,53 @@ class ManagerController extends Controller
 
 
     public function inventoryIndex()
-{
-    // Fetch ONLY Parts for the stock adjustment dropdown
-    $products = Product::whereHas('category', function ($query) {
-        $query->where('type', 'Part');
-    })->orderBy('product_name', 'ASC')->get();
+    {
+        // Fetch ONLY Parts for the stock adjustment dropdown
+        $products = Product::whereHas('category', function ($query) {
+            $query->where('type', 'Part');
+        })->orderBy('product_name', 'ASC')->get();
 
-    // Fetch ONLY 'Part' categories
-    $categories = Category::where('type', 'Part')->orderBy('category_name', 'ASC')->get();
+        // Fetch ONLY 'Part' categories
+        $categories = Category::where('type', 'Part')->orderBy('category_name', 'ASC')->get();
 
-    // Fetch all tags from the system
-    $all_tags = Tag::orderBy('tag_name', 'ASC')->get();
+        // Fetch all tags from the system
+        $all_tags = Tag::orderBy('tag_name', 'ASC')->get();
 
-    return view('manager.inventory', compact('products', 'categories', 'all_tags'));
-}
+        return view('manager.inventory', compact('products', 'categories', 'all_tags'));
+    }
 
-public function restock(Request $request)
-{
-    $productId = $request->input('product_id');
-    $type = $request->input('type');
-    $quantity = (int) $request->input('quantity', 1);
+    public function restock(Request $request)
+    {
+        $productId = $request->input('product_id');
+        $type = $request->input('type');
+        $quantity = (int) $request->input('quantity', 1);
 
-    $product = Product::find($productId);
-    if ($product) {
-        if ($type === 'add') {
-            $product->quantity += $quantity;
-        } else {
-            $product->quantity = max(0, $product->quantity - $quantity);
+        $product = Product::find($productId);
+
+        if (!$product) {
+
+            return redirect()->route('manager.inventory')->with('error', 'Part not found.');
         }
+
+        if ($type === 'subtract' || $type === 'remove') {
+
+            if ($quantity > $product->quantity) {
+
+                return redirect()->route('manager.inventory')
+                    ->with('error', "Cannot remove {$quantity} units. Only {$product->quantity} units are currently available in stock.");
+            }
+
+            $product->quantity -= $quantity;
+
+        } else {
+
+            $product->quantity += $quantity;
+        }
+
         $product->save();
+
         return redirect()->route('manager.inventory')->with('success', 'Stock updated successfully.');
     }
-    return redirect()->route('manager.inventory')->with('error', 'Part not found.');
-}
 
     public function storeNewPart(Request $request)
     {
